@@ -57,6 +57,11 @@ export class Selection {
         eventBus.on('layer:select', (el) => {
             this.select(el);
         });
+
+        // Lắng nghe page switch — xóa toàn bộ selection
+        eventBus.on('selection:deselect-all', () => {
+            this.deselectAll();
+        });
     }
 
     /** Xử lý mousedown */
@@ -104,6 +109,7 @@ export class Selection {
     /** Bắt đầu chỉnh sửa text */
     _startEditing(el) {
         this.isEditing = true;
+        this._textBefore = el.innerHTML;
         el.contentEditable = 'true';
         el.focus();
         el.style.cursor = 'text';
@@ -139,6 +145,18 @@ export class Selection {
         el.style.cursor = '';
         el.style.outline = '';
         window.getSelection().removeAllRanges();
+        
+        // So sánh và emit history nếu có thay đổi
+        if (this._textBefore !== undefined && el.innerHTML !== this._textBefore) {
+            eventBus.emit('history:push', {
+                type: 'text-edit',
+                element: el,
+                before: this._textBefore,
+                after: el.innerHTML
+            });
+        }
+        this._textBefore = undefined;
+        
         eventBus.emit('element:editing-stop', el);
         eventBus.emit('element:updated', el);
     }

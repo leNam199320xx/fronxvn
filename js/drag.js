@@ -8,6 +8,7 @@
  * - Hiển thị Guide Line khi căn chỉnh
  */
 import eventBus from './event-bus.js';
+import { SNAP_THRESHOLD, DRAG_MIN_DISTANCE } from './config.js';
 
 export class Drag {
     constructor(editor) {
@@ -19,7 +20,7 @@ export class Drag {
         this.startY = 0;
         this.startPositions = []; // [{el, left, top}]
         this.guides = [];
-        this.snapThreshold = 5;
+        this.snapThreshold = SNAP_THRESHOLD;
 
         // Rubber-band state
         this.rbStartX = 0;
@@ -94,6 +95,7 @@ export class Drag {
 
     /** Bắt đầu drag */
     _startDrag(e, elements) {
+        if (this.editor.isPanning) return;
         this.isDragging = true;
         this.dragElements = elements;
         this.startX = e.clientX;
@@ -183,6 +185,11 @@ export class Drag {
                     before: { left: sp.left, top: sp.top },
                     after: { left: endLeft, top: endTop }
                 });
+
+                // Sync vào breakpoint store
+                const bpMgr = this.editor.breakpointManager;
+                bpMgr.setStyle(sp.el, 'left', endLeft + 'px');
+                bpMgr.setStyle(sp.el, 'top', endTop + 'px');
             }
 
             eventBus.emit('element:updated', sp.el);
@@ -235,7 +242,7 @@ export class Drag {
         const y2 = Math.max(this._rbCanvasStartY, canvasPoint.y);
 
         // Bỏ qua nếu vùng chọn quá nhỏ (click thường)
-        if (x2 - x1 < 5 && y2 - y1 < 5) return;
+        if (x2 - x1 < DRAG_MIN_DISTANCE && y2 - y1 < DRAG_MIN_DISTANCE) return;
 
         // Tìm elements nằm trong vùng rubber-band
         const elements = this.editor.getElements().filter(el => {

@@ -131,6 +131,14 @@ export class Overlay {
         eventBus.on('canvas:zoom', () => this._refreshOverlay());
         eventBus.on('canvas:resize', () => this._refreshOverlay());
 
+        // Page switch — xóa toàn bộ overlay và guides
+        eventBus.on('overlay:clear', () => {
+            this.selectedElements = [];
+            this._hideOverlay();
+            this._hideRubberBand();
+            this.hoverBox.style.display = 'none';
+        });
+
         // Rubber-band events từ drag.js
         eventBus.on('rubber-band:update', (rect) => this._updateRubberBand(rect));
         eventBus.on('rubber-band:end', () => this._hideRubberBand());

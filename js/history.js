@@ -3,12 +3,14 @@
  * Lưu mọi thao tác để có thể hoàn tác
  */
 import eventBus from './event-bus.js';
+import { HISTORY_MAX_SIZE } from './config.js';
 
 export class History {
-    constructor() {
+    constructor(editor) {
+        this.editor = editor;
         this.undoStack = [];
         this.redoStack = [];
-        this.maxHistory = 100;
+        this.maxHistory = HISTORY_MAX_SIZE;
 
         this._bindEvents();
     }
@@ -84,6 +86,10 @@ export class History {
             case 'move':
                 action.element.style.left = action.before.left + 'px';
                 action.element.style.top = action.before.top + 'px';
+                if (this.editor) {
+                    this.editor.breakpointManager.setStyle(action.element, 'left', action.before.left + 'px');
+                    this.editor.breakpointManager.setStyle(action.element, 'top', action.before.top + 'px');
+                }
                 eventBus.emit('element:updated', action.element);
                 eventBus.emit('element:transform', action.element);
                 break;
@@ -93,6 +99,12 @@ export class History {
                 action.element.style.top = action.before.top + 'px';
                 action.element.style.width = action.before.width + 'px';
                 action.element.style.height = action.before.height + 'px';
+                if (this.editor) {
+                    this.editor.breakpointManager.setStyle(action.element, 'left', action.before.left + 'px');
+                    this.editor.breakpointManager.setStyle(action.element, 'top', action.before.top + 'px');
+                    this.editor.breakpointManager.setStyle(action.element, 'width', action.before.width + 'px');
+                    this.editor.breakpointManager.setStyle(action.element, 'height', action.before.height + 'px');
+                }
                 eventBus.emit('element:updated', action.element);
                 eventBus.emit('element:transform', action.element);
                 break;
@@ -123,6 +135,39 @@ export class History {
                 action.element.style.transform = action.before;
                 eventBus.emit('element:updated', action.element);
                 break;
+
+            case 'text-edit':
+                action.element.innerHTML = action.before;
+                eventBus.emit('element:updated', action.element);
+                break;
+
+            case 'group':
+                // Undo group: di chuyển children về parent, khôi phục tọa độ tuyệt đối, xóa GroupElement
+                action.children.forEach(child => {
+                    const pos = action.positions.find(p => p.el === child);
+                    child.style.left = pos.left + 'px';
+                    child.style.top  = pos.top  + 'px';
+                    action.parent.appendChild(child);
+                });
+                action.groupEl.remove();
+                eventBus.emit('element:deleted', action.groupEl);
+                eventBus.emit('layer:refresh');
+                break;
+
+            case 'ungroup':
+                // Undo ungroup: tái tạo GroupElement, đưa children trở lại bên trong
+                action.groupEl.style.left = action.groupLeft + 'px';
+                action.groupEl.style.top  = action.groupTop  + 'px';
+                action.children.forEach(child => {
+                    const pos = action.positions.find(p => p.el === child);
+                    child.style.left = pos.relLeft + 'px';
+                    child.style.top  = pos.relTop  + 'px';
+                    action.groupEl.appendChild(child);
+                });
+                action.parent.appendChild(action.groupEl);
+                eventBus.emit('element:added', action.groupEl);
+                eventBus.emit('layer:refresh');
+                break;
         }
     }
 
@@ -132,6 +177,10 @@ export class History {
             case 'move':
                 action.element.style.left = action.after.left + 'px';
                 action.element.style.top = action.after.top + 'px';
+                if (this.editor) {
+                    this.editor.breakpointManager.setStyle(action.element, 'left', action.after.left + 'px');
+                    this.editor.breakpointManager.setStyle(action.element, 'top', action.after.top + 'px');
+                }
                 eventBus.emit('element:updated', action.element);
                 eventBus.emit('element:transform', action.element);
                 break;
@@ -141,6 +190,12 @@ export class History {
                 action.element.style.top = action.after.top + 'px';
                 action.element.style.width = action.after.width + 'px';
                 action.element.style.height = action.after.height + 'px';
+                if (this.editor) {
+                    this.editor.breakpointManager.setStyle(action.element, 'left', action.after.left + 'px');
+                    this.editor.breakpointManager.setStyle(action.element, 'top', action.after.top + 'px');
+                    this.editor.breakpointManager.setStyle(action.element, 'width', action.after.width + 'px');
+                    this.editor.breakpointManager.setStyle(action.element, 'height', action.after.height + 'px');
+                }
                 eventBus.emit('element:updated', action.element);
                 eventBus.emit('element:transform', action.element);
                 break;
@@ -170,6 +225,37 @@ export class History {
             case 'rotate':
                 action.element.style.transform = action.after;
                 eventBus.emit('element:updated', action.element);
+                break;
+
+            case 'text-edit':
+                action.element.innerHTML = action.after;
+                eventBus.emit('element:updated', action.element);
+                break;
+
+            case 'group':
+                // Redo group: di chuyển children vào GroupElement với tọa độ tương đối
+                action.children.forEach(child => {
+                    const pos = action.positions.find(p => p.el === child);
+                    child.style.left = (pos.left - action.groupLeft) + 'px';
+                    child.style.top  = (pos.top  - action.groupTop)  + 'px';
+                    action.groupEl.appendChild(child);
+                });
+                action.parent.appendChild(action.groupEl);
+                eventBus.emit('element:added', action.groupEl);
+                eventBus.emit('layer:refresh');
+                break;
+
+            case 'ungroup':
+                // Redo ungroup: di chuyển children ra parent với tọa độ tuyệt đối, xóa GroupElement
+                action.children.forEach(child => {
+                    const pos = action.positions.find(p => p.el === child);
+                    child.style.left = (pos.relLeft + action.groupLeft) + 'px';
+                    child.style.top  = (pos.relTop  + action.groupTop)  + 'px';
+                    action.parent.insertBefore(child, action.groupEl);
+                });
+                action.groupEl.remove();
+                eventBus.emit('element:deleted', action.groupEl);
+                eventBus.emit('layer:refresh');
                 break;
         }
     }

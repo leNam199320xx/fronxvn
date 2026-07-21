@@ -3,6 +3,7 @@
  * Giữ nguyên style khi paste/duplicate
  */
 import eventBus from './event-bus.js';
+import { PASTE_OFFSET, ELEMENT_ID_RANDOM_LENGTH } from './config.js';
 
 export class Clipboard {
     constructor(editor) {
@@ -61,9 +62,9 @@ export class Clipboard {
 
         const newElements = this.clipboardData.map(template => {
             const clone = template.cloneNode(true);
-            clone.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-            const left = (parseFloat(clone.style.left) || 0) + 20;
-            const top = (parseFloat(clone.style.top) || 0) + 20;
+            clone.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, ELEMENT_ID_RANDOM_LENGTH)}`;
+            const left = (parseFloat(clone.style.left) || 0) + PASTE_OFFSET;
+            const top  = (parseFloat(clone.style.top)  || 0) + PASTE_OFFSET;
             clone.style.left = left + 'px';
             clone.style.top = top + 'px';
             parent.appendChild(clone);
@@ -88,9 +89,9 @@ export class Clipboard {
 
         const newElements = elements.map(el => {
             const clone = el.cloneNode(true);
-            clone.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-            const left = (parseFloat(clone.style.left) || 0) + 20;
-            const top = (parseFloat(clone.style.top) || 0) + 20;
+            clone.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, ELEMENT_ID_RANDOM_LENGTH)}`;
+            const left = (parseFloat(clone.style.left) || 0) + PASTE_OFFSET;
+            const top  = (parseFloat(clone.style.top)  || 0) + PASTE_OFFSET;
             clone.style.left = left + 'px';
             clone.style.top = top + 'px';
             const parent = el.parentNode;

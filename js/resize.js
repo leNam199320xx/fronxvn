@@ -5,6 +5,7 @@
  * - Hiển thị kích thước đang thay đổi
  */
 import eventBus from './event-bus.js';
+import { ELEMENT_MIN_SIZE } from './config.js';
 
 export class Resize {
     constructor(editor) {
@@ -50,6 +51,7 @@ export class Resize {
 
     /** Bắt đầu resize */
     _startResize(e, handle) {
+        if (this.editor.isPanning) return;
         const el = this.editor.selection.getSelected();
         if (!el) return;
 
@@ -145,7 +147,7 @@ export class Resize {
         }
 
         // Đảm bảo kích thước tối thiểu
-        const minSize = 20;
+        const minSize = ELEMENT_MIN_SIZE;
         if (width < minSize) {
             if (['w', 'nw', 'sw'].includes(this.handle)) {
                 left = left + width - minSize;
@@ -199,6 +201,13 @@ export class Resize {
                 before: this.startState,
                 after: endRect
             });
+
+            // Sync vào breakpoint store
+            const bpMgr = this.editor.breakpointManager;
+            bpMgr.setStyle(this.resizeElement, 'left',   endRect.left   + 'px');
+            bpMgr.setStyle(this.resizeElement, 'top',    endRect.top    + 'px');
+            bpMgr.setStyle(this.resizeElement, 'width',  endRect.width  + 'px');
+            bpMgr.setStyle(this.resizeElement, 'height', endRect.height + 'px');
         }
 
         eventBus.emit('element:updated', this.resizeElement);

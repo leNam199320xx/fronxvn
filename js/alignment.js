@@ -79,19 +79,49 @@ export class Alignment {
         const beforeHeight = parseFloat(el.style.height) || el.offsetHeight;
 
         switch (direction) {
-            case 'left':   el.style.left = '0px'; break;
-            case 'center': el.style.left = Math.round((parentWidth - elWidth) / 2) + 'px'; break;
-            case 'right':  el.style.left = (parentWidth - elWidth) + 'px'; break;
-            case 'top':    el.style.top = '0px'; break;
-            case 'middle': el.style.top = Math.round((parentHeight - elHeight) / 2) + 'px'; break;
-            case 'bottom': el.style.top = (parentHeight - elHeight) + 'px'; break;
+            case 'left':
+                el.style.left = '0px';
+                this.editor.breakpointManager.setStyle(el, 'left', '0px');
+                break;
+            case 'center': {
+                const centerLeft = Math.round((parentWidth - elWidth) / 2) + 'px';
+                el.style.left = centerLeft;
+                this.editor.breakpointManager.setStyle(el, 'left', centerLeft);
+                break;
+            }
+            case 'right': {
+                const rightVal = (parentWidth - elWidth) + 'px';
+                el.style.left = rightVal;
+                this.editor.breakpointManager.setStyle(el, 'left', rightVal);
+                break;
+            }
+            case 'top':
+                el.style.top = '0px';
+                this.editor.breakpointManager.setStyle(el, 'top', '0px');
+                break;
+            case 'middle': {
+                const middleTop = Math.round((parentHeight - elHeight) / 2) + 'px';
+                el.style.top = middleTop;
+                this.editor.breakpointManager.setStyle(el, 'top', middleTop);
+                break;
+            }
+            case 'bottom': {
+                const bottomVal = (parentHeight - elHeight) + 'px';
+                el.style.top = bottomVal;
+                this.editor.breakpointManager.setStyle(el, 'top', bottomVal);
+                break;
+            }
             case 'full-width':
                 el.style.left = '0px';
                 el.style.width = parentWidth + 'px';
+                this.editor.breakpointManager.setStyle(el, 'left', '0px');
+                this.editor.breakpointManager.setStyle(el, 'width', parentWidth + 'px');
                 break;
             case 'full-height':
                 el.style.top = '0px';
                 el.style.height = parentHeight + 'px';
+                this.editor.breakpointManager.setStyle(el, 'top', '0px');
+                this.editor.breakpointManager.setStyle(el, 'height', parentHeight + 'px');
                 break;
         }
 
@@ -165,6 +195,9 @@ export class Alignment {
             if (newLeft !== beforeLeft || newTop !== beforeTop) {
                 el.style.left = newLeft + 'px';
                 el.style.top = newTop + 'px';
+
+                this.editor.breakpointManager.setStyle(el, 'left', newLeft + 'px');
+                this.editor.breakpointManager.setStyle(el, 'top', newTop + 'px');
 
                 eventBus.emit('history:push', {
                     type: 'move',

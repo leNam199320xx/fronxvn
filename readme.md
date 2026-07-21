@@ -2,630 +2,315 @@
 
 > Build visually. Own forever.
 
-A lightweight HTML Visual Editor that generates clean, semantic, production-ready HTML, CSS and JavaScript.
+A lightweight HTML Visual Editor that generates clean, semantic, production-ready HTML and CSS.
 
-No vendor lock-in.
-No framework required.
-Deploy anywhere.
+No vendor lock-in. No framework required. Deploy anywhere.
 
 ---
 
-# Vision
+## Vision
 
 The web should belong to its creators.
 
-We believe websites should be portable, editable, lightweight and easy to deploy.
-
 HTML Studio is designed for freelancers, startups, agencies and businesses who want to build websites visually without sacrificing ownership of their code.
-
-Today you can export a static website.
-
-Tomorrow you can connect cloud services.
-
-In the future you can self-host everything.
 
 Your website always belongs to you.
 
 ---
 
-# Design Principles
+## Design Principles
 
-## HTML First
+**HTML First** — Generate semantic HTML before anything else. Never sacrifice code quality for visual effects.
 
-Generate semantic HTML before anything else.
+**Clean Code** — Readable HTML. Readable CSS. No generated garbage.
 
-Never sacrifice code quality for visual effects.
+**Performance First** — Fast loading, small bundle, zero unnecessary dependencies.
 
----
+**Own Your Code** — Every project can be exported. No proprietary runtime. No binary project format.
 
-## Clean Code
-
-Readable HTML.
-
-Readable CSS.
-
-Readable JavaScript.
-
-No generated garbage.
+**Deploy Anywhere** — Apache, Nginx, Cloudflare Pages, GitHub Pages, Netlify, Vercel, NAS, offline. Anywhere.
 
 ---
 
-## Performance First
+## Current Features
 
-Fast loading.
+### Canvas
 
-Small bundle.
+- Absolute positioning on an infinite canvas
+- Drag & drop to move elements
+- Resize (8 handles: corners + edges)
+- Rotate with rotation handle
+- Multi-select with Shift+Click and rubber-band drag
+- Smart alignment guides (snap to edges and centers)
+- Snap to grid (10px grid, toggleable)
+- Zoom in/out (Ctrl+Scroll or toolbar buttons), reset
+- Pan (Space+drag or middle-click drag)
+- Lock / Hide elements
+- Group / Ungroup elements
 
-Minimal runtime.
+### Elements
 
-Zero unnecessary dependencies.
+Layout: Section, Container, Div, Row, Column, Card
 
----
+Content: Heading (H1–H6), Paragraph, Text, Image, Video, SVG, Icon, Button, Link
 
-## Own Your Code
+Forms: Form, Input, Select, Checkbox, Radio, Textarea
 
-Every project can be exported.
+### Properties Panel
 
-Everything remains editable.
+Full CSS editing for the selected element:
 
-No proprietary runtime.
+- Layout: position, x/y, width/height, min/max dimensions, display, flexbox, grid, overflow, z-index
+- Spacing: margin, padding (top/right/bottom/left)
+- Typography: font family, size, weight, line height, letter spacing, text align, transform, decoration, color
+- Background: color, image, size, position, repeat
+- Border: width, style, color, radius
+- Shadow: box-shadow
+- Effects: opacity, filter
+- Transform: rotate, scale, translate, skew
 
-No binary project format.
+### Layers Panel
 
----
+- Tree view of all elements on canvas
+- Expand/collapse nested elements
+- Click to select, Shift+Click to multi-select
+- Drag to reorder layers
+- Double-click to rename
+- Toggle visibility per element
 
-## Progressive Enhancement
+### Responsive / Breakpoints
 
-Static website first.
+- Three breakpoints: Desktop (full), Tablet (768px), Mobile (375px)
+- Per-breakpoint style overrides (stored in `__bpStyles` on each element)
+- Visual indicator on canvas when in tablet/mobile mode
 
-Cloud features are optional.
+### Multi-Page Project
 
-Backend is optional.
+- Unlimited pages per project, managed via Tab Bar above the canvas
+- Add page ("+"), switch, rename (double-click or right-click → Rename), duplicate, delete
+- Each page has an independent undo/redo history
+- Tab context menu: Rename / Duplicate / Delete (Delete disabled when only 1 page)
+- Page names longer than 20 characters are truncated with ellipsis in the tab; full name shown on hover
 
----
+### History (Undo / Redo)
 
-## Build Once
+- Per-page undo/redo stack (up to 100 actions)
+- Tracks: move, resize, rotate, style change, add, delete, text edit, group, ungroup
+- Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z
+- History is swapped when switching pages — no cross-page interference
 
-Deploy Anywhere.
+### Clipboard
 
-Apache
+- Copy / Paste / Cut / Duplicate elements
+- Keyboard shortcuts: Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+D
 
-Nginx
+### Alignment
 
-IIS
+- Align selected elements: left, center, right, top, middle, bottom
+- Full width / Full height stretch
+- Works with multi-selection
 
-Cloudflare Pages
+### Group Manager
 
-GitHub Pages
+- Group selected elements into a container (Ctrl+G)
+- Ungroup (Ctrl+Shift+G)
+- Group preserves absolute positions of children
 
-Netlify
+### Context Menu
 
-Vercel
+Right-click any element on canvas:
 
-NAS
+- Duplicate, Delete
+- Lock / Unlock
+- Group / Ungroup
+- Move to top / Move to bottom
 
-Offline
+### Template Manager
 
-Anywhere.
+Predefined layout templates that can be inserted onto the canvas.
 
----
+### Theme Manager
 
-# Target Users
+Global CSS variable tokens (colors, typography, spacing, border radius, shadows).
 
-Freelancers
+### Project Save / Load
 
-Small Agencies
+- **Auto-save**: debounced 1-second save to `localStorage` on every change (element add/delete/update, history change, page add/delete/rename/switch)
+- **Manual save**: downloads a `.json` project file
+- **Manual load**: loads a `.json` project file
+- **Format v2.0**: `{ version, timestamp, meta, pages[] }` — each page stores `id`, `name`, `html`, `bpStyles`, `meta`
+- **Backward compatible** with v1.0 format (`elements[]`) — automatically converted to a single-page v2.0 project on load
+- On reload: auto-restores from `localStorage`; if no saved data exists, creates a blank "Page 1"
 
-Startups
+### Export
 
-Restaurants
-
-Coffee Shops
-
-Medical Clinics
-
-Local Businesses
-
-Developers
-
-Anyone who wants full ownership of their website.
-
----
-
-# Core Features
-
-## Canvas
-
-- Visual Editing
-- Drag & Drop
-- Resize
-- Rotate
-- Multi Select
-- Smart Guides
-- Snap
-- Grid
-- Zoom
-- Pan
-- Lock
-- Hide
-- Group
-- Ungroup
-
----
-
-## Elements
-
-Layout
-
-- Section
-- Container
-- Div
-- Flex
-- Grid
-
-Content
-
-- Heading
-- Paragraph
-- Text
-- Image
-- Video
-- SVG
-- Icon
-- Button
-- Link
-
-Forms
-
-- Form
-- Input
-- Select
-- Checkbox
-- Radio
-- Textarea
-
-Advanced
-
-- Tabs
-- Accordion
-- Modal
-- Table
-- List
+- **HTML tab**: clean HTML with class attributes (no inline styles)
+- **CSS tab**: clean CSS with `.classname` rules + `@media` queries for tablet/mobile breakpoints
+- **JSON tab**: raw project data as JSON
+- **SEO panel**: title, meta description, canonical URL, Open Graph tags (title, description, image)
+- **Download button**: download the active tab's content as a file
+- **ZIP button**: packages all pages as separate HTML files + one shared `style.css`
+  - First page → `index.html`
+  - Other pages → slugified filename (e.g. "About Us" → `about-us.html`)
+  - Duplicate slug conflicts resolved with `-2`, `-3` suffixes
 
 ---
 
-## Layers
+## Project Structure
 
-- Tree View
-- Nested Structure
-- Search
-- Rename
-- Duplicate
-- Lock
-- Hide
+```
+fronxvn/
+├── index.html              # App shell
+├── css/
+│   └── editor.css          # All styles (editor UI + canvas elements)
+└── js/
+    ├── editor.js           # Main orchestrator, initializes all modules
+    ├── event-bus.js        # Singleton EventBus — central pub/sub communication
+    ├── page-manager.js     # Multi-page CRUD, Tab Bar, per-page history swap
+    ├── project.js          # Save/load project JSON (v2.0), auto-save to localStorage
+    ├── export.js           # Export HTML/CSS/JSON, ZIP multi-page download
+    ├── history.js          # Undo/redo stack (per active page)
+    ├── selection.js        # Click/shift-click/rubber-band selection
+    ├── overlay.js          # Selection box, resize handles, rotation handle, hover
+    ├── drag.js             # Move elements by dragging
+    ├── resize.js           # Resize elements via handles
+    ├── rotate.js           # Rotate elements via rotation handle
+    ├── alignment.js        # Align/distribute selected elements
+    ├── clipboard.js        # Copy/paste/cut/duplicate
+    ├── group-manager.js    # Group/ungroup elements
+    ├── context-menu.js     # Right-click context menu for elements
+    ├── property-panel.js   # Left panel — CSS property editor
+    ├── layer-panel.js      # Right panel — layer tree view
+    ├── element-panel.js    # Right panel — element library
+    ├── template-manager.js # Right panel — layout templates
+    └── breakpoint-manager.js # Breakpoint switching and per-bp style overrides
+```
 
----
+### Architecture
 
-## Property Panel
+All modules communicate exclusively through **EventBus** — no module imports another module directly (except `editor.js` which bootstraps them all).
 
-Layout
+```
+User interaction
+      ↓
+  DOM Events
+      ↓
+  EventBus.emit()
+      ↓
+  Module listeners
+      ↓
+  DOM mutations / EventBus.emit()
+```
 
-Spacing
+Key events:
 
-Border
-
-Radius
-
-Shadow
-
-Transform
-
-Display
-
-Position
-
-Flex
-
-Grid
-
-Typography
-
-Background
-
-Effects
-
-Animation
-
-Custom Attributes
-
-HTML Attributes
-
-ARIA Attributes
-
----
-
-## Responsive
-
-Desktop
-
-Tablet
-
-Mobile
-
-Custom Breakpoints
-
-Responsive Visibility
-
-Responsive Styles
+| Event | Emitter | Listeners |
+|---|---|---|
+| `page:switch` | Tab Bar click | PageManager |
+| `page:switched` | PageManager | PropertyPanel, LayerPanel (via `layer:refresh`) |
+| `selection:deselect-all` | PageManager | Selection |
+| `overlay:clear` | PageManager | Overlay |
+| `history:push` | drag/resize/rotate/style | History |
+| `history:changed` | History, PageManager | toolbar buttons |
+| `element:selected` | Selection | Overlay, PropertyPanel, LayerPanel |
+| `layer:refresh` | PageManager, History | LayerPanel |
+| `project:save` | toolbar | ProjectManager |
+| `export:show` | toolbar | ExportManager |
 
 ---
 
-## Theme System
+## Keyboard Shortcuts
 
-Global Colors
-
-Typography
-
-Spacing
-
-Border Radius
-
-Shadow
-
-Dark Mode
-
-CSS Variables
-
----
-
-## Assets
-
-Images
-
-Videos
-
-SVG
-
-Fonts
-
-Icons
-
-Folders
-
-Search
-
-Replace
-
-Optimize
+| Shortcut | Action |
+|---|---|
+| Ctrl+Z | Undo |
+| Ctrl+Shift+Z | Redo |
+| Ctrl+C | Copy |
+| Ctrl+V | Paste |
+| Ctrl+X | Cut |
+| Ctrl+D | Duplicate |
+| Ctrl+G | Group |
+| Ctrl+Shift+G | Ungroup |
+| Delete / Backspace | Delete selected element |
+| Arrow keys | Move element 1px |
+| Shift+Arrow keys | Move element 10px |
+| Space+drag | Pan canvas |
+| Ctrl+Scroll | Zoom |
 
 ---
 
-## Components
+## Getting Started
 
-Create Component
+No build step required. Open `index.html` in a browser directly, or serve with any static file server:
 
-Variants
+```bash
+# Python
+python -m http.server 8080
 
-Slots
-
-Overrides
-
-Nested Components
-
-Global Components
-
-Reusable Blocks
+# Node
+npx serve .
+```
 
 ---
 
-## Project
+## Project File Format (v2.0)
 
-New
+```json
+{
+  "version": "2.0",
+  "timestamp": 1748920012345,
+  "meta": {
+    "title": "",
+    "description": "",
+    "ogTitle": "",
+    "ogDescription": "",
+    "ogImage": "",
+    "canonical": ""
+  },
+  "pages": [
+    {
+      "id": "page-1748920012345-x7k2p",
+      "name": "Home",
+      "html": "<div data-editor-element ...>...</div>",
+      "bpStyles": {
+        "el-abc": { "tablet": { "width": "100%" } }
+      },
+      "meta": {}
+    }
+  ]
+}
+```
 
-Open
-
-Save
-
-Auto Save
-
-History
-
-Version
-
-Import
-
-Export
-
----
-
-## Export
-
-Clean HTML
-
-Clean CSS
-
-Clean JavaScript
-
-Pretty Format
-
-Minified Output
-
-ZIP Export
-
-Asset Export
-
-SEO Ready
-
-Accessibility Ready
+Files saved with the old v1.0 format (`elements[]`) are automatically migrated to v2.0 on load.
 
 ---
 
-# HTML Quality Engine
+## Roadmap
 
-The editor doesn't only generate HTML.
+### v0.1 ✅
+Canvas, selection, drag, resize, property panel, layers, HTML export, project save
 
-It analyzes it.
+### v0.2 ✅
+Responsive breakpoints, undo/redo, clipboard, alignment, groups, context menu, templates, theme
 
-## HTML Rules
+### v0.3 ✅
+Multi-page project, per-page history, ZIP export, auto-save v2.0, backward compatibility
 
-Semantic Structure
+### v0.4
+Template Marketplace, Component system, HTML Quality Engine (semantic, a11y, SEO, performance scores)
 
-Duplicate IDs
+### v0.5
+Cloud Save, Cloud Publish, Forms API, Authentication
 
-Invalid Attributes
-
-Deep Nesting
-
-Empty Elements
-
-Invalid Hierarchy
-
----
-
-## Accessibility
-
-Missing ALT
-
-Missing Labels
-
-ARIA Validation
-
-Keyboard Navigation
-
-Focus Order
+### v1.0
+Platform ready, Marketplace, Backend APIs, Plugin SDK, Self-hosting
 
 ---
 
-## SEO
-
-Title
-
-Meta Description
-
-Heading Structure
-
-Canonical
-
-Open Graph
-
-Robots
-
----
-
-## Performance
-
-Lazy Loading
-
-Image Size
-
-Unused CSS
-
-Unused JS
-
-Inline Style Detection
-
-DOM Complexity
-
----
-
-## Maintainability
-
-Readable Class Names
-
-Reusable CSS
-
-CSS Variables
-
-Component Suggestions
-
-Duplicate Styles
-
----
-
-## Quality Score
-
-Semantic
-
-Accessibility
-
-Performance
-
-SEO
-
-Maintainability
-
-Overall Score
-
----
-
-# Developer Experience
-
-Keyboard Shortcuts
-
-Undo / Redo
-
-Copy / Paste
-
-Duplicate
-
-Quick Search
-
-Command Palette
-
-Context Menu
-
-Inspector
-
-Live Preview
-
-HTML Preview
-
-CSS Preview
-
----
-
-# Future Platform
-
-Editor
-
-↓
-
-Marketplace
-
-↓
-
-Cloud Publish
-
-↓
-
-Authentication
-
-↓
-
-Forms API
-
-↓
-
-Media Storage
-
-↓
-
-CMS
-
-↓
-
-Payments
-
-↓
-
-Analytics
-
-↓
-
-Self Hosted Server
-
-All optional.
-
----
-
-# What We Will Never Do
-
-❌ Lock your website
-
-❌ Lock your project
-
-❌ Force cloud hosting
-
-❌ Generate unreadable HTML
-
-❌ Require proprietary runtime
-
-❌ Hide your code
-
----
-
-# Roadmap
-
-## Version 0.1
-
-Canvas
-
-Selection
-
-Drag
-
-Resize
-
-Property Panel
-
-Layers
-
-HTML Export
-
-Project Save
-
----
-
-## Version 0.2
-
-Responsive
-
-Theme
-
-Assets
-
-Components
-
-Undo / Redo
-
----
-
-## Version 0.3
-
-Template Marketplace
-
-Component Marketplace
-
-HTML Quality Engine
-
----
-
-## Version 0.4
-
-Cloud Save
-
-Cloud Publish
-
-Forms API
-
-Authentication
-
----
-
-## Version 1.0
-
-Platform Ready
-
-Marketplace
-
-Backend APIs
-
-Plugin SDK
-
-Self Hosting
-
----
-
-# Philosophy
+## Philosophy
 
 We don't want to own your website.
 
 We want you to own it.
 
-Build visually.
-
-Export freely.
-
-Deploy anywhere.
-
-Grow at your own pace.
+Build visually. Export freely. Deploy anywhere. Grow at your own pace.

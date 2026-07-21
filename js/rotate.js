@@ -4,6 +4,7 @@
  * - Hiển thị góc xoay
  */
 import eventBus from './event-bus.js';
+import { ROTATE_SNAP_ANGLE } from './config.js';
 
 export class Rotate {
     constructor(editor) {
@@ -46,6 +47,7 @@ export class Rotate {
 
     /** Bắt đầu xoay */
     _startRotate(e) {
+        if (this.editor.isPanning) return;
         const el = this.editor.selection.getSelected();
         if (!el) return;
 
@@ -83,7 +85,7 @@ export class Rotate {
 
         // Snap 15 độ khi giữ Shift
         if (e.shiftKey) {
-            rotation = Math.round(rotation / 15) * 15;
+            rotation = Math.round(rotation / ROTATE_SNAP_ANGLE) * ROTATE_SNAP_ANGLE;
         }
 
         // Áp dụng rotation

@@ -3,6 +3,10 @@
  * Quản lý Canvas: grid, scroll, zoom, tọa độ chuột
  */
 import eventBus from './event-bus.js';
+import {
+    ZOOM_DEFAULT, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP,
+    GRID_SIZE, GRID_ENABLED_DEFAULT
+} from './config.js';
 import { Selection } from './selection.js';
 import { Overlay } from './overlay.js';
 import { Drag } from './drag.js';
@@ -15,10 +19,12 @@ import { History } from './history.js';
 import { ContextMenu } from './context-menu.js';
 import { Clipboard } from './clipboard.js';
 import { Alignment } from './alignment.js';
+import { PageManager } from './page-manager.js';
 import { ExportManager } from './export.js';
 import { ProjectManager } from './project.js';
 import { TemplateManager } from './template-manager.js';
 import { BreakpointManager } from './breakpoint-manager.js';
+import { GroupManager } from './group-manager.js';
 
 class Editor {
     constructor() {
@@ -31,12 +37,18 @@ class Editor {
         this.zoomDisplay = document.getElementById('zoom-display');
 
         // State
-        this.zoom = 1;
-        this.minZoom = 0.25;
-        this.maxZoom = 3;
-        this.zoomStep = 0.1;
-        this.gridEnabled = true;
-        this.gridSize = 10;
+        this.zoom = ZOOM_DEFAULT;
+        this.minZoom = ZOOM_MIN;
+        this.maxZoom = ZOOM_MAX;
+        this.zoomStep = ZOOM_STEP;
+        this.gridEnabled = GRID_ENABLED_DEFAULT;
+        this.gridSize = GRID_SIZE;
+
+        // Pan state
+        this.isPanning = false;
+        this.panStartX = 0;
+        this.panStartY = 0;
+        this._panMouseActive = false;
 
         // Project metadata (SEO, OG tags...)
         this.projectMeta = {
@@ -63,7 +75,7 @@ class Editor {
 
     /** Khởi tạo các module con */
     _initModules() {
-        this.history = new History();
+        this.history = new History(this);
         this.selection = new Selection(this);
         this.overlay = new Overlay(this);
         this.drag = new Drag(this);
@@ -79,6 +91,11 @@ class Editor {
         this.projectManager = new ProjectManager(this);
         this.templateManager = new TemplateManager(this);
         this.breakpointManager = new BreakpointManager(this);
+        this.groupManager = new GroupManager(this);
+
+        // PageManager phải được khởi tạo sau tất cả module khác
+        // vì nó dùng this.history, this.selection, v.v.
+        this.pageManager = new PageManager(this);
     }
 
     /** Khởi tạo toolbar */
@@ -197,6 +214,75 @@ class Editor {
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => this._handleKeydown(e));
+
+        // Space key: kích hoạt PanMode
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                const t = e.target;
+                // Không kích hoạt khi đang focus vào input/textarea/contenteditable
+                if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
+                e.preventDefault();
+                if (!this.isPanning) {
+                    this.isPanning = true;
+                    this.canvasWrapper.style.cursor = 'grab';
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                this.isPanning = false;
+                this._panMouseActive = false;
+                this.canvasWrapper.style.cursor = '';
+            }
+        });
+
+        // Pan: mousedown trên canvasWrapper khi đang PanMode (Space) hoặc middle-click
+        this.canvasWrapper.addEventListener('mousedown', (e) => {
+            if (this.isPanning && e.button === 0) {
+                e.preventDefault();
+                e.stopPropagation();
+                this._panMouseActive = true;
+                this.panStartX = e.clientX;
+                this.panStartY = e.clientY;
+                this.canvasWrapper.style.cursor = 'grabbing';
+            }
+            // Middle-click pan
+            if (e.button === 1) {
+                e.preventDefault();
+                this.isPanning = true;
+                this._panMouseActive = true;
+                this.panStartX = e.clientX;
+                this.panStartY = e.clientY;
+                this.canvasWrapper.style.cursor = 'grabbing';
+            }
+        }, true); // capture phase để ưu tiên hơn drag handler
+
+        // Pan: mousemove trên document khi đang pan
+        document.addEventListener('mousemove', (e) => {
+            if (this._panMouseActive) {
+                const dx = e.clientX - this.panStartX;
+                const dy = e.clientY - this.panStartY;
+                this.canvasContainer.scrollLeft -= dx;
+                this.canvasContainer.scrollTop -= dy;
+                this.panStartX = e.clientX;
+                this.panStartY = e.clientY;
+            }
+        });
+
+        // Pan: mouseup trên document để kết thúc pan
+        document.addEventListener('mouseup', (e) => {
+            if (this._panMouseActive && e.button === 0) {
+                this._panMouseActive = false;
+                if (this.isPanning) this.canvasWrapper.style.cursor = 'grab';
+            }
+            // Middle-click release
+            if (this._panMouseActive && e.button === 1) {
+                this.isPanning = false;
+                this._panMouseActive = false;
+                this.canvasWrapper.style.cursor = '';
+            }
+        });
     }
 
     /** Xử lý phím tắt */
@@ -209,6 +295,19 @@ class Editor {
 
         const ctrl = e.ctrlKey || e.metaKey;
         const shift = e.shiftKey;
+
+        // Ctrl+G: Group
+        if (ctrl && !shift && e.key === 'g') {
+            e.preventDefault();
+            eventBus.emit('group:group');
+            return;
+        }
+        // Ctrl+Shift+G: Ungroup
+        if (ctrl && shift && (e.key === 'g' || e.key === 'G')) {
+            e.preventDefault();
+            eventBus.emit('group:ungroup');
+            return;
+        }
 
         // Ctrl+Z: Undo
         if (ctrl && !shift && e.key === 'z') {

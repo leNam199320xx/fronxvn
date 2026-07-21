@@ -4,20 +4,27 @@
  * - Auto-save vào localStorage (mỗi khi có thay đổi)
  * - Auto-load khi mở lại trang
  * - Save/Load file JSON thủ công
+ * - Format v2.0 với pages[] (backward compatible với v1.0 elements[])
  */
 import eventBus from './event-bus.js';
+import {
+    AUTOSAVE_STORAGE_KEY,
+    AUTOSAVE_DELAY_MS,
+    AUTOLOAD_DELAY_MS,
+    PROJECT_VERSION
+} from './config.js';
 
 export class ProjectManager {
     constructor(editor) {
         this.editor = editor;
-        this.autoSaveKey = 'editor-project-autosave';
-        this.autoSaveDelay = 1000; // debounce 1s
+        this.autoSaveKey   = AUTOSAVE_STORAGE_KEY;
+        this.autoSaveDelay = AUTOSAVE_DELAY_MS;
         this._autoSaveTimer = null;
 
         this._bindEvents();
 
-        // Auto-load project từ localStorage khi khởi tạo
-        setTimeout(() => this._autoLoad(), 100);
+        // Auto-load (hoặc tạo trang mặc định) khi khởi tạo
+        setTimeout(() => this._autoLoad(), AUTOLOAD_DELAY_MS);
     }
 
     /** Bind events */
@@ -26,10 +33,15 @@ export class ProjectManager {
         eventBus.on('project:load', () => this.loadFromFile());
 
         // Auto-save khi có thay đổi
-        eventBus.on('element:added', () => this._scheduleAutoSave());
+        eventBus.on('element:added',   () => this._scheduleAutoSave());
         eventBus.on('element:deleted', () => this._scheduleAutoSave());
         eventBus.on('element:updated', () => this._scheduleAutoSave());
         eventBus.on('history:changed', () => this._scheduleAutoSave());
+        // Auto-save khi có thay đổi về trang
+        eventBus.on('page:added',   () => this._scheduleAutoSave());
+        eventBus.on('page:deleted', () => this._scheduleAutoSave());
+        eventBus.on('page:renamed', () => this._scheduleAutoSave());
+        eventBus.on('page:switched', () => this._scheduleAutoSave());
     }
 
     /** Debounce auto-save */
@@ -44,32 +56,33 @@ export class ProjectManager {
             const project = this._getProjectData();
             localStorage.setItem(this.autoSaveKey, JSON.stringify(project));
         } catch (e) {
-            console.warn('Auto-save failed:', e);
+            console.warn('[ProjectManager] Auto-save failed (storage full?):', e);
         }
     }
 
-    /** Auto-load từ localStorage */
+    /** Auto-load từ localStorage; nếu không có thì tạo trang mặc định */
     _autoLoad() {
         try {
             const data = localStorage.getItem(this.autoSaveKey);
-            if (!data) return;
-
-            const project = JSON.parse(data);
-            if (project && project.elements && project.elements.length > 0) {
-                this._loadProject(project);
+            if (data) {
+                const project = JSON.parse(data);
+                if (project) {
+                    this._loadProject(project);
+                    return;
+                }
             }
         } catch (e) {
-            console.warn('Auto-load failed:', e);
+            console.warn('[ProjectManager] Auto-load failed:', e);
         }
+
+        // Không có autosave → tạo trang mặc định qua PageManager
+        this.editor.pageManager.loadPages([]);
     }
 
-    /** Lấy project data hiện tại */
+    /** Lấy project data hiện tại (format v2.0) */
     _getProjectData() {
-        const canvas = this.editor.canvas;
-        const elements = Array.from(canvas.querySelectorAll(':scope > [data-editor-element]'));
-
         return {
-            version: '1.0',
+            version: PROJECT_VERSION,
             timestamp: Date.now(),
             meta: this.editor.projectMeta || {
                 title: '',
@@ -79,11 +92,7 @@ export class ProjectManager {
                 ogImage: '',
                 canonical: ''
             },
-            canvas: {
-                width: canvas.style.width || '2000px',
-                height: canvas.style.height || '2000px'
-            },
-            elements: elements.map(el => this._serializeElement(el))
+            pages: this.editor.pageManager.getPages()
         };
     }
 
@@ -114,10 +123,9 @@ export class ProjectManager {
                 try {
                     const project = JSON.parse(event.target.result);
                     this._loadProject(project);
-                    // Lưu lại vào auto-save
                     this._autoSave();
                 } catch (err) {
-                    console.error('Failed to load project:', err);
+                    console.error('[ProjectManager] Failed to load project:', err);
                     alert('Invalid project file.');
                 }
             };
@@ -126,40 +134,87 @@ export class ProjectManager {
         input.click();
     }
 
-    /** Load project data vào canvas */
+    /** Load project data — hỗ trợ v2.0 (pages[]) và v1.0 (elements[]) */
     _loadProject(project) {
-        const canvas = this.editor.canvas;
-
-        // Xóa tất cả elements hiện tại
-        canvas.querySelectorAll('[data-editor-element]').forEach(el => el.remove());
-
-        // Bỏ chọn
-        this.editor.selection.deselectAll();
+        if (!project) return;
 
         // Khôi phục meta
         if (project.meta) {
             this.editor.projectMeta = project.meta;
+            eventBus.emit('project:meta-updated', this.editor.projectMeta);
         }
 
-        // Tạo lại elements
-        if (project.elements) {
-            project.elements.forEach(data => {
-                const el = this._deserializeElement(data);
-                canvas.appendChild(el);
-            });
+        // ── Format v2.0: có pages[] ──
+        if (Array.isArray(project.pages) && project.pages.length > 0) {
+            this.editor.pageManager.loadPages(project.pages);
+            return;
         }
 
-        // Xóa history
-        this.editor.history.clear();
+        // ── Format v1.0: backward compat (có elements[]) ──
+        if (Array.isArray(project.elements)) {
+            const html = this._elementsToHtml(project.elements);
+            const bpStyles = this._extractBpStyles(project.elements);
+            const legacyPage = {
+                id: 'page-legacy-0001',
+                name: 'Page 1',
+                html,
+                bpStyles,
+                meta: project.meta || {}
+            };
+            this.editor.pageManager.loadPages([legacyPage]);
+            return;
+        }
 
-        eventBus.emit('layer:refresh');
-        eventBus.emit('project:meta-updated', this.editor.projectMeta);
+        // ── Format không hợp lệ ──
+        console.warn('[ProjectManager] _loadProject: unrecognized format, loading empty project.');
+        this.editor.pageManager.loadPages([]);
     }
 
     /** Xóa auto-save (reset project) */
     clearAutoSave() {
         localStorage.removeItem(this.autoSaveKey);
     }
+
+    // ─────────────────────────────────────────────
+    //  Backward compat helpers (v1.0 → v2.0)
+    // ─────────────────────────────────────────────
+
+    /**
+     * Chuyển đổi mảng element objects (v1.0) thành innerHTML string.
+     * @param {Array} elements
+     * @returns {string}
+     */
+    _elementsToHtml(elements) {
+        const tempContainer = document.createElement('div');
+        elements.forEach(data => {
+            const el = this._deserializeElement(data);
+            tempContainer.appendChild(el);
+        });
+        return tempContainer.innerHTML;
+    }
+
+    /**
+     * Extract bpStyles từ mảng element objects (v1.0).
+     * @param {Array} elements
+     * @returns {Object}
+     */
+    _extractBpStyles(elements) {
+        const bpStyles = {};
+        const collect = (elData) => {
+            if (elData.id && elData.bpStyles) {
+                bpStyles[elData.id] = elData.bpStyles;
+            }
+            if (Array.isArray(elData.children)) {
+                elData.children.forEach(collect);
+            }
+        };
+        elements.forEach(collect);
+        return bpStyles;
+    }
+
+    // ─────────────────────────────────────────────
+    //  Serialize / Deserialize element (dùng cho backward compat)
+    // ─────────────────────────────────────────────
 
     /** Serialize element thành object */
     _serializeElement(el) {
@@ -223,7 +278,6 @@ export class ProjectManager {
         if (data.hidden) {
             el.dataset.hidden = 'true';
             el.dataset.originalDisplay = data.originalDisplay || '';
-            // Không set display:none — element sẽ có style.display=none từ style object
         }
 
         // Restore breakpoint styles

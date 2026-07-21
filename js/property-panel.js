@@ -57,6 +57,12 @@ export class PropertyPanel {
             this._updateBreakpointBadge(bp);
             if (this.selectedElement) this._updateValues();
         });
+
+        // Khi switch trang -> reset panel về trạng thái trống
+        eventBus.on('page:switched', () => {
+            this.selectedElement = null;
+            this._clearValues();
+        });
     }
 
     /** Render panel content */

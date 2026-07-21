@@ -236,7 +236,8 @@ export class LayerPanel {
             paragraph: '¶', button: '▢', link: '🔗', image: '🖼',
             icon: '★', svg: '◇', video: '▶', audio: '♫',
             input: '▁', textarea: '▂', select: '▾', checkbox: '☑',
-            radio: '◉', table: '⊞', list: '≡', form: '📋'
+            radio: '◉', table: '⊞', list: '≡', form: '📋',
+            group: '⊡'
         };
         return icons[type] || '□';
     }

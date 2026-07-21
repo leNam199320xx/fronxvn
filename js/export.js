@@ -15,6 +15,7 @@
  * - Inject vào <head> khi export
  */
 import eventBus from './event-bus.js';
+import { JSZIP_CDN_URL, EXPORT_INDENT } from './config.js';
 
 export class ExportManager {
     constructor(editor) {
@@ -448,16 +449,35 @@ export class ExportManager {
 
     // ─── ZIP DOWNLOAD ─────────────────────────────────────────────────────────
 
-    /** Download ZIP chứa index.html + style.css */
+    /** Download ZIP chứa tất cả pages dưới dạng file HTML riêng + style.css */
     async _downloadZip() {
-        const html = this.exportHTML();
-        const css  = this.exportCSS();
+        const css = this.exportCSS();
+
+        // Lấy danh sách trang từ PageManager (đã serialize active page)
+        const pages = this.editor.pageManager
+            ? this.editor.pageManager.getPages()
+            : null;
 
         try {
-            // Lazy load JSZip từ CDN
             const JSZip = await this._loadJSZip();
             const zip = new JSZip();
-            zip.file('index.html', html);
+
+            if (pages && pages.length > 0) {
+                // Multi-page export
+                const filenames = this._resolveFilenames(pages);
+                pages.forEach((page, i) => {
+                    try {
+                        const html = this._generatePageHTML(page);
+                        zip.file(filenames[i], html);
+                    } catch (err) {
+                        console.warn(`[ExportManager] Skipping page "${page.name}" due to error:`, err);
+                    }
+                });
+            } else {
+                // Fallback: single-page export từ canvas hiện tại
+                zip.file('index.html', this.exportHTML());
+            }
+
             zip.file('style.css', css);
 
             const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
@@ -468,11 +488,108 @@ export class ExportManager {
             a.click();
             URL.revokeObjectURL(url);
         } catch (e) {
-            console.error('ZIP failed:', e);
+            console.error('[ExportManager] ZIP failed:', e);
             // Fallback: download riêng lẻ
-            this._download(html, 'index.html');
+            if (pages && pages.length > 0) {
+                const filenames = this._resolveFilenames(pages);
+                pages.forEach((page, i) => {
+                    try { this._download(this._generatePageHTML(page), filenames[i]); } catch (_) {}
+                });
+            } else {
+                this._download(this.exportHTML(), 'index.html');
+            }
             this._download(css, 'style.css');
         }
+    }
+
+    /**
+     * Sinh HTML hoàn chỉnh cho một page object.
+     * Dùng page.html (innerHTML của canvas) — không đọc từ DOM.
+     * @param {Object} page - { id, name, html, bpStyles, meta }
+     * @returns {string}
+     */
+    _generatePageHTML(page) {
+        const meta = {
+            ...({ title: '', description: '', ogTitle: '', ogDescription: '', ogImage: '', canonical: '' }),
+            ...(this.editor.projectMeta || {}),
+            ...(page.meta || {})  // page-level meta override project meta
+        };
+
+        // Build <head>
+        const title = meta.title || page.name || 'Exported Page';
+        let head = `<!DOCTYPE html>\n<html lang="en">\n<head>\n`;
+        head += `    <meta charset="UTF-8">\n`;
+        head += `    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n`;
+        head += `    <title>${this._escapeHtml(title)}</title>\n`;
+
+        if (meta.description) {
+            head += `    <meta name="description" content="${this._escapeAttr(meta.description)}">\n`;
+        }
+        if (meta.canonical) {
+            head += `    <link rel="canonical" href="${this._escapeAttr(meta.canonical)}">\n`;
+        }
+        if (meta.ogTitle || meta.ogDescription || meta.ogImage) {
+            if (meta.ogTitle)       head += `    <meta property="og:title" content="${this._escapeAttr(meta.ogTitle)}">\n`;
+            if (meta.ogDescription) head += `    <meta property="og:description" content="${this._escapeAttr(meta.ogDescription)}">\n`;
+            if (meta.ogImage)       head += `    <meta property="og:image" content="${this._escapeAttr(meta.ogImage)}">\n`;
+            head += `    <meta property="og:type" content="website">\n`;
+        }
+
+        head += `    <link rel="stylesheet" href="style.css">\n`;
+        head += `</head>\n<body>\n`;
+
+        // Parse page.html thành DOM tạm để dùng _elementToHTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = page.html || '';
+
+        // Restore __bpStyles vào elements tạm để exportCSS có thể đọc nếu cần
+        if (page.bpStyles) {
+            Object.entries(page.bpStyles).forEach(([id, styles]) => {
+                const el = tempDiv.querySelector(`#${CSS.escape(id)}`);
+                if (el) el.__bpStyles = styles;
+            });
+        }
+
+        // Sinh HTML từ các top-level editor elements
+        let body = '';
+        const topElements = Array.from(tempDiv.querySelectorAll(':scope > [data-editor-element]'));
+        topElements.forEach(el => {
+            body += this._elementToHTML(el, 1);
+        });
+
+        return head + body + `</body>\n</html>`;
+    }
+
+    /**
+     * Slug hóa tên trang thành filename hợp lệ.
+     * @param {string} name
+     * @returns {string} slug (không có .html)
+     */
+    _slugify(name) {
+        return (name || '')
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9-]/g, '')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '') || 'page';
+    }
+
+    /**
+     * Tạo danh sách filenames không trùng cho tất cả pages.
+     * Trang đầu tiên luôn là index.html.
+     * @param {Array<{name: string}>} pages
+     * @returns {string[]}
+     */
+    _resolveFilenames(pages) {
+        const seen = new Map(); // slug → count
+        return pages.map((page, i) => {
+            if (i === 0) return 'index.html';
+            const base = this._slugify(page.name);
+            const count = seen.get(base) || 0;
+            seen.set(base, count + 1);
+            return count === 0 ? `${base}.html` : `${base}-${count + 1}.html`;
+        });
     }
 
     /** Lazy load JSZip từ CDN */
