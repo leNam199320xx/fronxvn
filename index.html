@@ -1,602 +1,109 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suzuki Fronx Việt Nam</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
-
-    <style>
-        body {
-            background: #f5f6f8;
-        }
-
-        .hero {
-            background: url("images/banner.jpg") center center/cover;
-            height: 550px;
-            position: relative;
-            color: white;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, .55);
-        }
-
-        .hero-content {
-            position: relative;
-            z-index: 10;
-            padding-top: 140px;
-        }
-
-        .section-title {
-            font-weight: bold;
-            margin-bottom: 25px;
-            color: #003b7a;
-        }
-
-        .card {
-            border: none;
-            border-radius: 12px;
-            overflow: hidden;
-            transition: .3s;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, .15);
-        }
-
-        .price-box {
-            background: #003b7a;
-            color: white;
-            border-radius: 15px;
-            padding: 20px;
-        }
-
-        footer {
-            background: #003b7a;
-            color: white;
-            padding: 40px 0;
-            margin-top: 80px;
-        }
-
-        .dealer {
-            border-left: 4px solid #0d6efd;
-            padding-left: 15px;
-            margin-bottom: 15px;
-        }
-
-        iframe {
-            width: 100%;
-            height: 220px;
-            border-radius: 10px;
-        }
-
-        .navbar {
-            background: white;
-        }
-    </style>
-
+    <title>HTML Visual Editor</title>
+    <link rel="stylesheet" href="css/editor.css">
 </head>
-
 <body>
+    <div class="editor-layout">
+        <!-- Toolbar -->
+        <div class="editor-toolbar">
+            <div class="toolbar-group">
+                <button id="btn-undo" title="Undo (Ctrl+Z)">↶</button>
+                <button id="btn-redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <button id="btn-zoom-out" title="Zoom Out">−</button>
+                <span class="zoom-display" id="zoom-display">100%</span>
+                <button id="btn-zoom-in" title="Zoom In">+</button>
+                <button id="btn-zoom-reset" title="Reset Zoom">⟲</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <button id="btn-toggle-grid" title="Toggle Grid" class="active">Grid</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <button id="btn-align-left" title="Align Left">⫷</button>
+                <button id="btn-align-center" title="Align Center H">⫿</button>
+                <button id="btn-align-right" title="Align Right">⫸</button>
+                <button id="btn-align-top" title="Align Top">⊤</button>
+                <button id="btn-align-middle" title="Align Middle V">⊶</button>
+                <button id="btn-align-bottom" title="Align Bottom">⊥</button>
+                <button id="btn-full-width" title="Full Width">↔W</button>
+                <button id="btn-full-height" title="Full Height">↕H</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <button id="btn-export" title="Export">Export</button>
+                <button id="btn-save" title="Save">Save</button>
+                <button id="btn-load" title="Load">Load</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group" id="viewport-switcher">
+                <button id="btn-bp-desktop" class="active" title="Desktop (full width)" data-bp="desktop">🖥</button>
+                <button id="btn-bp-tablet" title="Tablet (768px)" data-bp="tablet">📱</button>
+                <button id="btn-bp-mobile" title="Mobile (375px)" data-bp="mobile">📲</button>
+                <span class="viewport-label" id="viewport-label">Desktop</span>
+            </div>
+            <span class="coords-display" id="coords-display">X: 0 Y: 0</span>
+        </div>
 
-    <nav class="navbar navbar-expand-lg shadow-sm sticky-top">
-
-        <div class="container">
-
-            <a class="navbar-brand fw-bold text-primary" href="#">
-                <i class="fa-solid fa-car-side"></i>
-                FRONX VIỆT NAM
-            </a>
-
-            <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#menu">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
-            <div class="collapse navbar-collapse" id="menu">
-
-                <ul class="navbar-nav ms-auto">
-
-                    <li class="nav-item"><a class="nav-link" href="#">Trang chủ</a></li>
-
-                    <li class="nav-item"><a class="nav-link" href="#">Giá xe</a></li>
-
-                    <li class="nav-item"><a class="nav-link" href="#">Review</a></li>
-
-                    <li class="nav-item"><a class="nav-link" href="#">Video</a></li>
-
-                    <li class="nav-item"><a class="nav-link" href="#">Đại lý</a></li>
-
-                    <li class="nav-item"><a class="nav-link" href="#">Tin tức</a></li>
-
-                </ul>
-
+        <!-- Main area -->
+        <div class="editor-main">
+            <!-- Left Panel: Properties -->
+            <div class="panel-left" id="panel-left">
+                <div class="panel-section">
+                    <div class="panel-section-header">
+                        Properties
+                        <span class="arrow">▼</span>
+                    </div>
+                </div>
+                <!-- Property panel content sẽ được render bởi JS -->
             </div>
 
-        </div>
-
-    </nav>
-
-    <section class="hero">
-
-        <div class="container hero-content">
-
-            <h1 class="display-4 fw-bold">
-                Suzuki Fronx Việt Nam
-            </h1>
-
-            <p class="lead">
-                Website cộng đồng chia sẻ giá xe, đánh giá, video review,
-                kinh nghiệm sử dụng và đại lý Suzuki trên toàn quốc.
-            </p>
-
-            <a class="btn btn-warning btn-lg me-2">
-                Xem giá mới nhất
-            </a>
-
-            <a class="btn btn-outline-light btn-lg">
-                Đăng ký lái thử
-            </a>
-
-        </div>
-
-    </section>
-
-
-    <div class="container my-5">
-
-        <div class="price-box">
-
-            <h3>
-                <i class="fa-solid fa-tags"></i>
-                Giá xe mới nhất
-            </h3>
-
-            <div class="row text-center mt-4">
-
-                <div class="col-md-4">
-                    <h5>Fronx GL</h5>
-                    <h2>520 triệu</h2>
+            <!-- Canvas -->
+            <div class="canvas-wrapper" id="canvas-wrapper">
+                <div class="canvas-container" id="canvas-container">
+                    <div class="canvas show-grid" id="canvas">
+                        <!-- Elements sẽ được thêm vào đây -->
+                    </div>
                 </div>
-
-                <div class="col-md-4">
-                    <h5>Fronx GLX</h5>
-                    <h2>599 triệu</h2>
-                </div>
-
-                <div class="col-md-4">
-                    <h5>Fronx GLX Plus</h5>
-                    <h2>649 triệu</h2>
-                </div>
-
+                <!-- Overlay layer -->
+                <div class="overlay-layer" id="overlay-layer"></div>
             </div>
 
+            <!-- Right Panel: Elements + Layers -->
+            <div class="panel-right" id="panel-right">
+                <div class="panel-tabs">
+                    <div class="panel-tab active" data-tab="elements">Elements</div>
+                    <div class="panel-tab" data-tab="templates">Templates</div>
+                    <div class="panel-tab" data-tab="layers">Layers</div>
+                    <div class="panel-tab" data-tab="theme">Theme</div>
+                </div>
+                <div class="panel-tab-content active" data-tab-content="elements">
+                    <!-- Element library content sẽ được render bởi JS -->
+                </div>
+                <div class="panel-tab-content" data-tab-content="templates">
+                    <!-- Template library sẽ được render bởi JS -->
+                </div>
+                <div class="panel-tab-content" data-tab-content="layers">
+                    <!-- Layer panel content sẽ được render bởi JS -->
+                </div>
+                <div class="panel-tab-content" data-tab-content="theme">
+                    <!-- Theme manager sẽ được render bởi JS -->
+                </div>
+            </div>
         </div>
-
     </div>
 
-
-
-    <div class="container my-5">
-
-        <h2 class="section-title">
-            Bài viết nổi bật
-        </h2>
-
-        <div class="row">
-
-            <div class="col-md-4">
-
-                <div class="card">
-
-                    <img src="images/post1.jpg" class="card-img-top">
-
-                    <div class="card-body">
-
-                        <h5>Đánh giá Suzuki Fronx</h5>
-
-                        <p>
-                            Ưu nhược điểm sau 1000 km sử dụng.
-                        </p>
-
-                        <button class="btn btn-primary">
-                            Đọc tiếp
-                        </button>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="col-md-4">
-
-                <div class="card">
-
-                    <img src="images/post2.jpg" class="card-img-top">
-
-                    <div class="card-body">
-
-                        <h5>So sánh Fronx vs Raize</h5>
-
-                        <p>
-                            Nên mua mẫu xe nào?
-                        </p>
-
-                        <button class="btn btn-primary">
-                            Đọc tiếp
-                        </button>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="col-md-4">
-
-                <div class="card">
-
-                    <img src="images/post3.jpg" class="card-img-top">
-
-                    <div class="card-body">
-
-                        <h5>Mức tiêu hao nhiên liệu</h5>
-
-                        <p>
-                            Thực tế người dùng chia sẻ.
-                        </p>
-
-                        <button class="btn btn-primary">
-                            Đọc tiếp
-                        </button>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <div class="container my-5">
-
-        <h2 class="section-title">
-            Video Review
-        </h2>
-
-        <div class="row">
-
-            <div class="col-md-6 mb-4">
-
-                <iframe src="https://www.youtube.com/embed/Z979yjXL7mY"></iframe>
-
-            </div>
-
-            <div class="col-md-6 mb-4">
-
-                <iframe src="https://www.youtube.com/embed/Z-YP-7bwB2w"></iframe>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-
-    <div class="container my-5">
-
-        <h2 class="section-title">
-            Các mẫu xe Suzuki tại Việt Nam
-        </h2>
-
-        <div class="row">
-
-            <div class="col-md-2">
-
-                <div class="card text-center">
-
-                    <img src="images/fronx.png">
-
-                    <div class="card-body">
-
-                        Fronx
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="col-md-2">
-
-                <div class="card text-center">
-
-                    <img src="images/xl7.png">
-
-                    <div class="card-body">
-
-                        XL7 Hybrid
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="col-md-2">
-
-                <div class="card text-center">
-
-                    <img src="images/jimny.png">
-
-                    <div class="card-body">
-
-                        Jimny
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="col-md-2">
-
-                <div class="card text-center">
-
-                    <img src="images/swift.png">
-
-                    <div class="card-body">
-
-                        Swift
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="col-md-2">
-
-                <div class="card text-center">
-
-                    <img src="images/carry.png">
-
-                    <div class="card-body">
-
-                        Carry Pro
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="col-md-2">
-
-                <div class="card text-center">
-
-                    <img src="images/eeco.png">
-
-                    <div class="card-body">
-
-                        Eeco
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-
-    <div class="container my-5">
-
-        <h2 class="section-title">
-            Đại lý Suzuki
-        </h2>
-
-        <div class="row">
-
-            <div class="col-md-6">
-
-                <div class="dealer">
-
-                    <h5>Suzuki Long Biên</h5>
-
-                    <p>
-                        📍 Hà Nội
-                    </p>
-
-                </div>
-
-                <div class="dealer">
-
-                    <h5>Suzuki Mỹ Đình</h5>
-
-                    <p>
-                        📍 Hà Nội
-                    </p>
-
-                </div>
-
-                <div class="dealer">
-
-                    <h5>Suzuki Việt Long</h5>
-
-                    <p>
-                        📍 TP Hồ Chí Minh
-                    </p>
-
-                </div>
-
-            </div>
-
-            <div class="col-md-6">
-
-                <img class="img-fluid rounded" src="images/map.jpg">
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-
-    <div class="container my-5">
-
-        <h2 class="section-title">
-            Tin tức mới nhất
-        </h2>
-
-        <div class="list-group">
-
-            <a href="#" class="list-group-item list-group-item-action">
-
-                Suzuki Fronx chính thức ra mắt tại Việt Nam
-
-            </a>
-
-            <a href="#" class="list-group-item list-group-item-action">
-
-                Giá lăn bánh tháng này
-
-            </a>
-
-            <a href="#" class="list-group-item list-group-item-action">
-
-                Khuyến mãi mới nhất
-
-            </a>
-
-            <a href="#" class="list-group-item list-group-item-action">
-
-                Đánh giá an toàn Fronx
-
-            </a>
-
-        </div>
-
-    </div>
-
-
-
-    <div class="container my-5">
-
-        <div class="card p-5">
-
-            <h2>
-                Đăng ký nhận báo giá
-            </h2>
-
-            <div class="row">
-
-                <div class="col-md-3">
-                    <input class="form-control" placeholder="Họ tên">
-                </div>
-
-                <div class="col-md-3">
-                    <input class="form-control" placeholder="Điện thoại">
-                </div>
-
-                <div class="col-md-3">
-                    <select class="form-select">
-                        <option>GL</option>
-                        <option>GLX</option>
-                        <option>GLX Plus</option>
-                    </select>
-                </div>
-
-                <div class="col-md-3">
-
-                    <button class="btn btn-warning w-100">
-
-                        Nhận báo giá
-
-                    </button>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-
-    <footer>
-
-        <div class="container">
-
-            <div class="row">
-
-                <div class="col-md-4">
-
-                    <h4>Suzuki Fronx Việt Nam</h4>
-
-                    <p>
-
-                        Website chia sẻ thông tin và cộng đồng người sử dụng Suzuki Fronx.
-
-                    </p>
-
-                </div>
-
-                <div class="col-md-4">
-
-                    <h5>Danh mục</h5>
-
-                    <ul>
-
-                        <li>Giá xe</li>
-
-                        <li>Review</li>
-
-                        <li>Video</li>
-
-                        <li>Đại lý</li>
-
-                        <li>Tin tức</li>
-
-                    </ul>
-
-                </div>
-
-                <div class="col-md-4">
-
-                    <h5>Theo dõi</h5>
-
-                    <i class="fab fa-facebook fa-2x me-3"></i>
-
-                    <i class="fab fa-youtube fa-2x"></i>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
-
+    <!-- Context Menu -->
+    <div class="context-menu" id="context-menu"></div>
+
+    <!-- Main entry point -->
+    <script type="module" src="js/editor.js"></script>
 </body>
-
 </html>
