@@ -11,9 +11,9 @@ import {
     AUTOSAVE_STORAGE_KEY,
     AUTOSAVE_DELAY_MS,
     AUTOLOAD_DELAY_MS,
-    PROJECT_VERSION
+    PROJECT_VERSION,
+    ELEMENT_ID_RANDOM_LENGTH
 } from './config.js';
-
 export class ProjectManager {
     constructor(editor) {
         this.editor = editor;
@@ -42,6 +42,14 @@ export class ProjectManager {
         eventBus.on('page:deleted', () => this._scheduleAutoSave());
         eventBus.on('page:renamed', () => this._scheduleAutoSave());
         eventBus.on('page:switched', () => this._scheduleAutoSave());
+        // Auto-save khi có thay đổi về component
+        eventBus.on('component:saved',        () => this._scheduleAutoSave());
+        eventBus.on('component:updated',      () => this._scheduleAutoSave());
+        eventBus.on('component:deleted',      () => this._scheduleAutoSave());
+        eventBus.on('component:list-changed', () => this._scheduleAutoSave());
+        // Auto-save khi theme thay đổi
+        eventBus.on('project:schedule-save',  () => this._scheduleAutoSave());
+        eventBus.on('theme:changed',          () => this._scheduleAutoSave());
     }
 
     /** Debounce auto-save */
@@ -79,7 +87,7 @@ export class ProjectManager {
         this.editor.pageManager.loadPages([]);
     }
 
-    /** Lấy project data hiện tại (format v2.0) */
+    /** Lấy project data hiện tại (format v2.2) */
     _getProjectData() {
         return {
             version: PROJECT_VERSION,
@@ -92,6 +100,12 @@ export class ProjectManager {
                 ogImage: '',
                 canonical: ''
             },
+            theme: this.editor.themeManager
+                ? this.editor.themeManager.getTheme()
+                : {},
+            components: this.editor.componentManager
+                ? this.editor.componentManager.getComponents()
+                : [],
             pages: this.editor.pageManager.getPages()
         };
     }
@@ -134,7 +148,7 @@ export class ProjectManager {
         input.click();
     }
 
-    /** Load project data — hỗ trợ v2.0 (pages[]) và v1.0 (elements[]) */
+    /** Load project data — hỗ trợ v2.1 (components[]+pages[]), v2.0 (pages[]) và v1.0 (elements[]) */
     _loadProject(project) {
         if (!project) return;
 
@@ -144,7 +158,17 @@ export class ProjectManager {
             eventBus.emit('project:meta-updated', this.editor.projectMeta);
         }
 
-        // ── Format v2.0: có pages[] ──
+        // Khôi phục theme (v2.2)
+        if (this.editor.themeManager && project.theme) {
+            this.editor.themeManager.loadTheme(project.theme);
+        }
+
+        // Khôi phục components (v2.1)
+        if (this.editor.componentManager && Array.isArray(project.components)) {
+            this.editor.componentManager.loadComponents(project.components);
+        }
+
+        // ── Format v2.0/v2.1: có pages[] ──
         if (Array.isArray(project.pages) && project.pages.length > 0) {
             this.editor.pageManager.loadPages(project.pages);
             return;
@@ -266,7 +290,7 @@ export class ProjectManager {
     _deserializeElement(data) {
         const el = document.createElement(data.tag || 'div');
         el.setAttribute('data-editor-element', '');
-        el.id = data.id || `el-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        el.id = data.id || `el-${Date.now()}-${Math.random().toString(36).substr(2, ELEMENT_ID_RANDOM_LENGTH)}`;
 
         if (data.type) el.dataset.type = data.type;
         if (data.name) el.dataset.name = data.name;

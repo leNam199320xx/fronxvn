@@ -25,12 +25,24 @@ export class PageManager {
 
     /**
      * Tạo trang mới với canvas trống, tự động switch sang trang mới.
+     * @param {Object} [opts] - { pushHistory: boolean }
      * @returns {PageObject} trang vừa tạo
      */
-    addPage() {
+    addPage(opts = {}) {
         const page = this._createEmptyPage();
+        const insertIdx = this._pages.length;
         this._pages.push(page);
         this.switchPage(page.id);
+
+        if (opts.pushHistory !== false) {
+            eventBus.emit('history:push', {
+                type: 'page:add',
+                pageId: page.id,
+                insertIdx,
+                pageSnapshot: this._snapshotPage(page)  // lưu snapshot để redo restore đúng
+            });
+        }
+
         eventBus.emit('page:added', { pageId: page.id });
         return page;
     }
@@ -96,23 +108,36 @@ export class PageManager {
     /**
      * Xóa trang theo id.
      * Không làm gì nếu chỉ còn 1 trang.
+     * @param {Object} [opts] - { pushHistory: boolean }
      * @param {string} pageId
      */
-    deletePage(pageId) {
+    deletePage(pageId, opts = {}) {
         if (this._pages.length <= 1) return;
 
         const idx = this._pages.findIndex(p => p.id === pageId);
         if (idx === -1) return;
 
+        // Serialize page state trước khi xóa (để có thể restore khi undo)
+        const pageSnapshot = this._snapshotPage(this._pages[idx]);
+
         // Nếu xóa active page → switch sang trang liền kề trước
         if (pageId === this._activePageId) {
-            const newIdx = idx > 0 ? idx - 1 : 1; // trang trước hoặc trang sau
+            const newIdx = idx > 0 ? idx - 1 : 1;
             this.switchPage(this._pages[newIdx].id);
         }
 
         // Giải phóng history state
         this._pages[idx].historyState = null;
         this._pages.splice(idx, 1);
+
+        if (opts.pushHistory !== false) {
+            eventBus.emit('history:push', {
+                type: 'page:delete',
+                pageId,
+                insertIdx: idx,
+                pageSnapshot
+            });
+        }
 
         this._renderTabBar();
         eventBus.emit('page:deleted', { pageId });
@@ -153,16 +178,28 @@ export class PageManager {
      * Bỏ qua nếu tên mới sau trim là rỗng.
      * @param {string} pageId
      * @param {string} newName
+     * @param {Object} [opts] - { pushHistory: boolean }
      */
-    renamePage(pageId, newName) {
+    renamePage(pageId, newName, opts = {}) {
         const trimmed = (newName || '').trim();
         if (!trimmed) return;
 
         const page = this._findPage(pageId);
         if (!page) return;
 
+        const oldName = page.name;
         page.name = trimmed;
         this._renderTabBar();
+
+        if (opts.pushHistory !== false) {
+            eventBus.emit('history:push', {
+                type: 'page:rename',
+                pageId,
+                before: oldName,
+                after: trimmed
+            });
+        }
+
         eventBus.emit('page:renamed', { pageId, newName: trimmed });
     }
 
@@ -492,6 +529,47 @@ export class PageManager {
         }
     }
 
+    /**
+     * Tạo snapshot của page (để lưu vào history cho undo delete).
+     * @param {PageObject} page
+     * @returns {Object}
+     */
+    _snapshotPage(page) {
+        // Nếu đây là active page, serialize canvas trước
+        if (page.id === this._activePageId) {
+            this._saveCurrentPageState(page);
+        }
+        return {
+            id: page.id,
+            name: page.name,
+            html: page.html,
+            bpStyles: JSON.parse(JSON.stringify(page.bpStyles || {})),
+            meta: JSON.parse(JSON.stringify(page.meta || {}))
+        };
+    }
+
+    /**
+     * Restore page từ snapshot (dùng khi undo page:delete).
+     * Chèn vào đúng vị trí index, switch sang trang đó.
+     * @param {Object} snapshot
+     * @param {number} insertIdx
+     */
+    _restorePageFromSnapshot(snapshot, insertIdx) {
+        const page = {
+            id: snapshot.id,
+            name: snapshot.name,
+            html: snapshot.html,
+            bpStyles: snapshot.bpStyles || {},
+            historyState: { undoStack: [], redoStack: [] },
+            meta: snapshot.meta || {}
+        };
+        // Clamp index
+        const idx = Math.min(insertIdx, this._pages.length);
+        this._pages.splice(idx, 0, page);
+        this._renderTabBar();
+        this.switchPage(page.id);
+        eventBus.emit('page:added', { pageId: page.id });
+    }
     /** Xóa toàn bộ nội dung canvas. */
     _clearCanvas() {
         this.editor.canvas.innerHTML = '';
@@ -551,10 +629,10 @@ export class PageManager {
     // ─────────────────────────────────────────────
 
     _bindEvents() {
-        eventBus.on('page:add',       ()         => this.addPage());
-        eventBus.on('page:switch',    (pageId)   => this.switchPage(pageId));
-        eventBus.on('page:delete',    (pageId)   => this.deletePage(pageId));
-        eventBus.on('page:duplicate', (pageId)   => this.duplicatePage(pageId));
+        eventBus.on('page:add',       ()                    => this.addPage());
+        eventBus.on('page:switch',    (pageId)              => this.switchPage(pageId));
+        eventBus.on('page:delete',    (pageId)              => this.deletePage(pageId));
+        eventBus.on('page:duplicate', (pageId)              => this.duplicatePage(pageId));
         eventBus.on('page:rename',    ({ pageId, newName }) => this.renamePage(pageId, newName));
     }
 }

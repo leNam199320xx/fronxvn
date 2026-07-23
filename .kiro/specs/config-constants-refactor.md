@@ -72,9 +72,18 @@ export const ELEMENT_ID_RANDOM_LENGTH = 5; // số ký tự random trong element
 
 ## Tasks
 
-### Task 1 — Tạo `js/config.js`
-
-Tạo file mới với tất cả constants như trên.
+- [x] Task 1 — Tạo `js/config.js`
+- [x] Task 2 — Cập nhật `js/editor.js`
+- [x] Task 3 — Cập nhật `js/drag.js`
+- [x] Task 4 — Cập nhật `js/resize.js`
+- [x] Task 5 — Cập nhật `js/rotate.js`
+- [x] Task 6 — Cập nhật `js/history.js`
+- [x] Task 7 — Cập nhật `js/project.js`
+- [x] Task 8 — Cập nhật `js/page-manager.js`
+- [x] Task 9 — Cập nhật `js/clipboard.js`
+- [x] Task 10 — Cập nhật `js/export.js`
+- [x] Task 11 — Cập nhật `js/breakpoint-manager.js`
+- [x] Task 12 — Cập nhật `js/project.js` backward compat + element-panel, group-manager, template-manager
 
 ---
 

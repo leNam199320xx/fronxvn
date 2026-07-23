@@ -43,7 +43,10 @@ export const ELEMENT_ID_RANDOM_LENGTH = 5; // số ký tự random trong element
 export const AUTOSAVE_STORAGE_KEY = 'editor-project-autosave';
 export const AUTOSAVE_DELAY_MS    = 1000;  // ms — debounce delay trước khi auto-save
 export const AUTOLOAD_DELAY_MS    = 100;   // ms — delay trước khi auto-load khi init
-export const PROJECT_VERSION      = '2.0';
+export const PROJECT_VERSION      = '2.2';
+
+// ─── Component System ─────────────────────────────────────────────────────────
+export const COMPONENT_ID_RANDOM_LENGTH = 5; // số ký tự random trong component id
 
 // ─── Page Manager ─────────────────────────────────────────────────────────────
 export const TAB_NAME_MAX_LENGTH   = 20;   // ký tự — tên tab dài hơn sẽ bị truncate

@@ -93,17 +93,69 @@ export class Selection {
         }
     }
 
-    /** Xử lý double click để edit text */
+    /** Xử lý double click để edit text hoặc mở file picker cho image */
     _handleDoubleClick(e) {
         const el = this._getElementFromEvent(e);
         if (!el) return;
 
+        // Double-click image → mở file picker
         const tag = el.tagName.toLowerCase();
+        const type = el.dataset.type || '';
+        if (tag === 'img' || type === 'image') {
+            this._openImagePicker(el);
+            return;
+        }
+
         const textTags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'a', 'button', 'li', 'label'];
         if (textTags.includes(tag) ||
-            ['text', 'heading', 'paragraph', 'button', 'link'].includes(el.dataset.type)) {
+            ['text', 'heading', 'paragraph', 'button', 'link'].includes(type)) {
             this._startEditing(el);
         }
+    }
+
+    /**
+     * Mở file picker để đổi ảnh cho element.
+     * @param {HTMLElement} el - img element hoặc container có background-image
+     */
+    _openImagePicker(el) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+
+        input.addEventListener('change', () => {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const dataUrl = ev.target.result;
+                const before = el.tagName.toLowerCase() === 'img'
+                    ? el.getAttribute('src')
+                    : el.style.backgroundImage;
+
+                if (el.tagName.toLowerCase() === 'img') {
+                    el.setAttribute('src', dataUrl);
+                } else {
+                    el.style.backgroundImage = `url("${dataUrl}")`;
+                }
+
+                const after = el.tagName.toLowerCase() === 'img'
+                    ? el.getAttribute('src')
+                    : el.style.backgroundImage;
+
+                eventBus.emit('history:push', {
+                    type: 'style',
+                    element: el,
+                    prop: el.tagName.toLowerCase() === 'img' ? 'src' : 'background-image',
+                    before,
+                    after
+                });
+                eventBus.emit('element:updated', el);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        input.click();
     }
 
     /** Bắt đầu chỉnh sửa text */

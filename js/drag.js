@@ -96,6 +96,12 @@ export class Drag {
     /** Bắt đầu drag */
     _startDrag(e, elements) {
         if (this.editor.isPanning) return;
+
+        // Alt+Drag: duplicate elements trước, drag bản copy
+        if (e.altKey) {
+            elements = this._duplicateForDrag(elements);
+        }
+
         this.isDragging = true;
         this.dragElements = elements;
         this.startX = e.clientX;
@@ -110,6 +116,35 @@ export class Drag {
 
         document.body.style.cursor = 'grabbing';
         eventBus.emit('drag:start', elements);
+    }
+
+    /**
+     * Nhân bản các elements để Alt+Drag.
+     * Element gốc giữ nguyên, bản copy được drag.
+     * @param {HTMLElement[]} elements
+     * @returns {HTMLElement[]} mảng bản copy
+     */
+    _duplicateForDrag(elements) {
+        const copies = elements.map(el => {
+            const clone = el.cloneNode(true);
+            clone.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+            if (el.__bpStyles) clone.__bpStyles = JSON.parse(JSON.stringify(el.__bpStyles));
+            el.parentNode.insertBefore(clone, el.nextSibling);
+            eventBus.emit('history:push', { type: 'add', element: clone, parent: el.parentNode });
+            eventBus.emit('element:added', clone);
+            return clone;
+        });
+
+        eventBus.emit('layer:refresh');
+
+        // Select các bản copy
+        if (copies.length === 1) {
+            this.editor.selection.select(copies[0]);
+        } else {
+            this.editor.selection.setSelection(copies);
+        }
+
+        return copies;
     }
 
     /** Xử lý khi đang kéo */

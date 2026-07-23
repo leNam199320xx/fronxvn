@@ -1,379 +1,538 @@
 /**
- * TemplateManager - Quản lý lưu và load template
- * Cho phép lưu element/nhóm element thành template để tái sử dụng
- * Template được lưu trong localStorage
+ * TemplateManager — Template Marketplace
+ *
+ * Hai loại template:
+ *   1. Built-in  — shipped với editor, từ js/templates/
+ *   2. User      — do user tạo từ canvas, lưu localStorage
+ *
+ * Insert modes:
+ *   - "New Project"   — loadPages() thay toàn bộ project (confirm nếu có nội dung)
+ *   - "Insert Pages"  — append pages vào project hiện tại
+ *
+ * UI: grid cards, filter bar (All / Landing / Portfolio / Blog / Business / Saved),
+ *     search input, preview modal.
  */
 import eventBus from './event-bus.js';
+import { ELEMENT_ID_RANDOM_LENGTH } from './config.js';
+import { BUILTIN_TEMPLATES, CATEGORIES } from './templates/index.js';
+
+const STORAGE_KEY = 'editor-user-templates';
 
 export class TemplateManager {
     constructor(editor) {
-        this.editor = editor;
+        this.editor    = editor;
         this.container = document.querySelector('[data-tab-content="templates"]');
-        this.storageKey = 'editor-templates';
-        this.templates = this._loadFromStorage();
+
+        /** Built-in templates */
+        this._builtins = BUILTIN_TEMPLATES;
+
+        /** User-saved templates (element fragments, stored in localStorage) */
+        this._userTemplates = this._loadUserTemplates();
+
+        /** Active filter */
+        this._activeCategory = 'all';
+
+        /** Search query */
+        this._searchQuery = '';
 
         this._bindEvents();
         this._render();
     }
 
-    /** Bind events */
+    // ─────────────────────────────────────────────
+    //  Events
+    // ─────────────────────────────────────────────
+
     _bindEvents() {
-        eventBus.on('template:save', () => this._saveCurrentAsTemplate());
+        eventBus.on('template:save', () => this._saveSelectionAsUserTemplate());
     }
 
-    /** Load templates từ localStorage */
-    _loadFromStorage() {
-        try {
-            const data = localStorage.getItem(this.storageKey);
-            return data ? JSON.parse(data) : [];
-        } catch (e) {
-            console.error('Failed to load templates:', e);
-            return [];
-        }
-    }
+    // ─────────────────────────────────────────────
+    //  Render
+    // ─────────────────────────────────────────────
 
-    /** Lưu templates vào localStorage */
-    _saveToStorage() {
-        try {
-            localStorage.setItem(this.storageKey, JSON.stringify(this.templates));
-        } catch (e) {
-            console.error('Failed to save templates:', e);
-        }
-    }
-
-    /** Render template panel */
     _render() {
+        if (!this.container) return;
         this.container.innerHTML = '';
 
-        // Header với nút Save Template
-        const header = document.createElement('div');
-        header.style.cssText = 'padding: 8px 12px; border-bottom: 1px solid var(--border-color); display: flex; gap: 4px;';
+        // ── Header toolbar ────────────────────────────────────────────────────
+        const toolbar = document.createElement('div');
+        toolbar.className = 'tpl-toolbar';
 
+        // Search
+        const search = document.createElement('input');
+        search.type        = 'text';
+        search.placeholder = 'Search templates…';
+        search.className   = 'tpl-search';
+        search.value       = this._searchQuery;
+        search.addEventListener('input', () => {
+            this._searchQuery = search.value;
+            this._renderGrid(grid);
+        });
+        toolbar.appendChild(search);
+
+        // Save selection button
         const btnSave = document.createElement('button');
-        btnSave.textContent = '+ Save Selection as Template';
-        btnSave.style.cssText = `
-            flex: 1; padding: 6px 8px; background: var(--accent); border: none; 
-            color: white; border-radius: 4px; cursor: pointer; font-size: 11px;
-        `;
-        btnSave.addEventListener('click', () => this._saveCurrentAsTemplate());
+        btnSave.className   = 'tpl-save-btn';
+        btnSave.textContent = '+ Save';
+        btnSave.title       = 'Save selected element as template';
+        btnSave.addEventListener('click', () => this._saveSelectionAsUserTemplate());
+        toolbar.appendChild(btnSave);
 
-        const btnImport = document.createElement('button');
-        btnImport.textContent = '↓';
-        btnImport.title = 'Import templates from file';
-        btnImport.style.cssText = `
-            padding: 6px 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); 
-            color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 11px;
-        `;
-        btnImport.addEventListener('click', () => this._importTemplates());
+        this.container.appendChild(toolbar);
 
-        const btnExport = document.createElement('button');
-        btnExport.textContent = '↑';
-        btnExport.title = 'Export templates to file';
-        btnExport.style.cssText = `
-            padding: 6px 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); 
-            color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 11px;
-        `;
-        btnExport.addEventListener('click', () => this._exportTemplates());
+        // ── Filter bar ────────────────────────────────────────────────────────
+        const filterBar = document.createElement('div');
+        filterBar.className = 'tpl-filter-bar';
 
-        header.appendChild(btnSave);
-        header.appendChild(btnImport);
-        header.appendChild(btnExport);
-        this.container.appendChild(header);
+        const allCategories = [
+            ...CATEGORIES,
+            { id: 'saved', label: 'Saved' }
+        ];
 
-        // Template list
-        const list = document.createElement('div');
-        list.className = 'template-list';
-        list.style.cssText = 'flex: 1; overflow-y: auto; padding: 8px;';
-
-        if (this.templates.length === 0) {
-            const empty = document.createElement('div');
-            empty.style.cssText = 'padding: 20px; text-align: center; color: var(--text-secondary); font-size: 12px;';
-            empty.innerHTML = 'No templates saved yet.<br><br>Select an element and click<br>"Save Selection as Template"<br>to create one.';
-            list.appendChild(empty);
-        } else {
-            this.templates.forEach((template, index) => {
-                const item = this._createTemplateItem(template, index);
-                list.appendChild(item);
+        allCategories.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className   = 'tpl-filter-btn' + (this._activeCategory === cat.id ? ' active' : '');
+            btn.textContent = cat.label;
+            btn.dataset.cat = cat.id;
+            btn.addEventListener('click', () => {
+                this._activeCategory = cat.id;
+                filterBar.querySelectorAll('.tpl-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this._renderGrid(grid);
             });
-        }
+            filterBar.appendChild(btn);
+        });
 
-        this.container.appendChild(list);
+        this.container.appendChild(filterBar);
+
+        // ── Grid ──────────────────────────────────────────────────────────────
+        const grid = document.createElement('div');
+        grid.className = 'tpl-grid';
+        this._renderGrid(grid);
+        this.container.appendChild(grid);
     }
 
-    /** Tạo item template trong list */
-    _createTemplateItem(template, index) {
-        const item = document.createElement('div');
-        item.className = 'template-item';
-        item.style.cssText = `
-            padding: 10px 12px; margin-bottom: 4px; background: var(--bg-tertiary);
-            border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer;
-            transition: all 0.15s ease;
-        `;
+    /**
+     * Render/re-render grid of template cards into container.
+     * @param {HTMLElement} grid
+     */
+    _renderGrid(grid) {
+        grid.innerHTML = '';
 
-        // Hover effect
-        item.addEventListener('mouseenter', () => {
-            item.style.borderColor = 'var(--accent)';
-            item.style.background = 'rgba(0, 120, 212, 0.1)';
-        });
-        item.addEventListener('mouseleave', () => {
-            item.style.borderColor = 'var(--border-color)';
-            item.style.background = 'var(--bg-tertiary)';
-        });
+        const items = this._getFilteredItems();
 
-        // Info
-        const info = document.createElement('div');
-        info.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;';
-
-        const name = document.createElement('span');
-        name.style.cssText = 'font-size: 12px; font-weight: 600; color: var(--text-primary);';
-        name.textContent = template.name;
-
-        const actions = document.createElement('div');
-        actions.style.cssText = 'display: flex; gap: 4px;';
-
-        // Rename button
-        const btnRename = document.createElement('button');
-        btnRename.textContent = '✎';
-        btnRename.title = 'Rename';
-        btnRename.style.cssText = 'background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 12px; padding: 2px 4px;';
-        btnRename.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._renameTemplate(index);
-        });
-
-        // Delete button
-        const btnDelete = document.createElement('button');
-        btnDelete.textContent = '✕';
-        btnDelete.title = 'Delete';
-        btnDelete.style.cssText = 'background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 12px; padding: 2px 4px;';
-        btnDelete.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._deleteTemplate(index);
-        });
-
-        actions.appendChild(btnRename);
-        actions.appendChild(btnDelete);
-        info.appendChild(name);
-        info.appendChild(actions);
-
-        // Description
-        const desc = document.createElement('div');
-        desc.style.cssText = 'font-size: 10px; color: var(--text-secondary);';
-        const date = new Date(template.timestamp);
-        desc.textContent = `${template.type} • ${date.toLocaleDateString()} ${date.toLocaleTimeString().slice(0, 5)}`;
-
-        item.appendChild(info);
-        item.appendChild(desc);
-
-        // Click để insert template
-        item.addEventListener('click', () => this._insertTemplate(template));
-
-        return item;
-    }
-
-    /** Lưu element đang chọn thành template */
-    _saveCurrentAsTemplate() {
-        const el = this.editor.selection.getSelected();
-        if (!el) {
-            this._showNotification('Please select an element to save as template.');
+        if (items.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'tpl-empty';
+            empty.innerHTML = `<span>📋</span><p>No templates found</p>`;
+            grid.appendChild(empty);
             return;
         }
 
-        // Prompt tên template
-        const name = prompt('Template name:', el.dataset.name || el.dataset.type || 'My Template');
-        if (!name) return;
-
-        const template = {
-            id: `tpl-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            name: name,
-            type: el.dataset.type || el.tagName.toLowerCase(),
-            timestamp: Date.now(),
-            data: this._serializeElement(el)
-        };
-
-        this.templates.unshift(template);
-        this._saveToStorage();
-        this._render();
-
-        this._showNotification(`Template "${name}" saved!`);
+        items.forEach(item => {
+            grid.appendChild(
+                item._isUser
+                    ? this._buildUserCard(item)
+                    : this._buildBuiltinCard(item)
+            );
+        });
     }
 
-    /** Insert template vào canvas */
-    _insertTemplate(template) {
-        const el = this._deserializeElement(template.data);
+    // ─────────────────────────────────────────────
+    //  Filtering
+    // ─────────────────────────────────────────────
 
-        // Offset vị trí
+    _getFilteredItems() {
+        const q = this._searchQuery.toLowerCase().trim();
+
+        let items = [];
+
+        if (this._activeCategory === 'saved') {
+            items = this._userTemplates.map(t => ({ ...t, _isUser: true }));
+        } else if (this._activeCategory === 'all') {
+            items = [
+                ...this._builtins,
+                ...this._userTemplates.map(t => ({ ...t, _isUser: true }))
+            ];
+        } else {
+            items = this._builtins.filter(t => t.category === this._activeCategory);
+        }
+
+        if (q) {
+            items = items.filter(t =>
+                t.name.toLowerCase().includes(q) ||
+                (t.description || '').toLowerCase().includes(q)
+            );
+        }
+
+        return items;
+    }
+
+    // ─────────────────────────────────────────────
+    //  Cards
+    // ─────────────────────────────────────────────
+
+    _buildBuiltinCard(tpl) {
+        const card = document.createElement('div');
+        card.className = 'tpl-card';
+
+        const thumb = document.createElement('div');
+        thumb.className = 'tpl-thumb';
+        if (tpl.thumbnail) thumb.style.backgroundImage = `url("${tpl.thumbnail}")`;
+        card.appendChild(thumb);
+
+        const info = document.createElement('div');
+        info.className = 'tpl-card-info';
+        info.innerHTML = `
+            <span class="tpl-card-name">${tpl.name}</span>
+            <span class="tpl-card-pages">${tpl.pages} page${tpl.pages !== 1 ? 's' : ''}</span>
+        `;
+        card.appendChild(info);
+
+        const desc = document.createElement('p');
+        desc.className   = 'tpl-card-desc';
+        desc.textContent = tpl.description || '';
+        card.appendChild(desc);
+
+        const actions = document.createElement('div');
+        actions.className = 'tpl-card-actions';
+
+        const btnNew = document.createElement('button');
+        btnNew.className   = 'tpl-btn tpl-btn-primary';
+        btnNew.textContent = 'New Project';
+        btnNew.title       = 'Replace current project with this template';
+        btnNew.addEventListener('click', (e) => { e.stopPropagation(); this._insertAsNewProject(tpl); });
+
+        const btnInsert = document.createElement('button');
+        btnInsert.className   = 'tpl-btn';
+        btnInsert.textContent = 'Insert Pages';
+        btnInsert.title       = 'Append pages to current project';
+        btnInsert.addEventListener('click', (e) => { e.stopPropagation(); this._insertPages(tpl); });
+
+        const btnPreview = document.createElement('button');
+        btnPreview.className   = 'tpl-btn tpl-btn-icon';
+        btnPreview.textContent = '👁';
+        btnPreview.title       = 'Preview template';
+        btnPreview.addEventListener('click', (e) => { e.stopPropagation(); this._showPreview(tpl); });
+
+        actions.appendChild(btnNew);
+        actions.appendChild(btnInsert);
+        actions.appendChild(btnPreview);
+        card.appendChild(actions);
+
+        return card;
+    }
+
+    _buildUserCard(tpl) {
+        const card = document.createElement('div');
+        card.className = 'tpl-card tpl-card-user';
+
+        const thumb = document.createElement('div');
+        thumb.className = 'tpl-thumb';
+        card.appendChild(thumb);
+
+        const info = document.createElement('div');
+        info.className = 'tpl-card-info';
+        info.innerHTML = `<span class="tpl-card-name">${tpl.name}</span><span class="tpl-card-pages">element</span>`;
+        card.appendChild(info);
+
+        const actions = document.createElement('div');
+        actions.className = 'tpl-card-actions';
+
+        const btnInsert = document.createElement('button');
+        btnInsert.className   = 'tpl-btn tpl-btn-primary';
+        btnInsert.textContent = 'Insert';
+        btnInsert.addEventListener('click', (e) => { e.stopPropagation(); this._insertUserTemplate(tpl); });
+
+        const btnDelete = document.createElement('button');
+        btnDelete.className   = 'tpl-btn tpl-btn-danger';
+        btnDelete.textContent = '✕';
+        btnDelete.title       = 'Delete template';
+        btnDelete.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete template "${tpl.name}"?`)) {
+                this._deleteUserTemplate(tpl.id);
+            }
+        });
+
+        actions.appendChild(btnInsert);
+        actions.appendChild(btnDelete);
+        card.appendChild(actions);
+
+        return card;
+    }
+
+    // ─────────────────────────────────────────────
+    //  Insert modes (A3)
+    // ─────────────────────────────────────────────
+
+    /**
+     * New Project — replace current project with template.
+     * Confirm if canvas has content.
+     * @param {BuiltinTemplate} tpl
+     */
+    _insertAsNewProject(tpl) {
+        const hasContent = this.editor.canvas.querySelector('[data-editor-element]');
+
+        if (hasContent) {
+            const ok = confirm(
+                `Replace current project with "${tpl.name}"?\n\nUnsaved changes will be lost.`
+            );
+            if (!ok) return;
+        }
+
+        // Regen IDs để tránh duplicate khi load nhiều lần
+        const pages = this._regenPageIds(tpl.pages_data);
+
+        this.editor.pageManager.loadPages(pages);
+
+        // Auto-save ngay
+        eventBus.emit('project:meta-updated', {
+            title: tpl.pages_data[0]?.meta?.title || tpl.name,
+            description: tpl.description || ''
+        });
+
+        this._showNotification(`"${tpl.name}" loaded as new project.`);
+    }
+
+    /**
+     * Insert Pages — append template pages to current project.
+     * @param {BuiltinTemplate} tpl
+     */
+    _insertPages(tpl) {
+        const pages = this._regenPageIds(tpl.pages_data);
+
+        // Lấy pages hiện tại, append thêm
+        const currentPages = this.editor.pageManager.getPages();
+        const merged = [...currentPages, ...pages];
+
+        this.editor.pageManager.loadPages(merged);
+        this._showNotification(`${pages.length} page(s) from "${tpl.name}" inserted.`);
+    }
+
+    /**
+     * Insert user template (element fragment) lên canvas.
+     * @param {object} tpl
+     */
+    _insertUserTemplate(tpl) {
+        const el = this._deserializeElement(tpl.data);
         el.style.left = '50px';
-        el.style.top = '50px';
+        el.style.top  = '50px';
 
-        // Target: element đang chọn (nếu là container) hoặc canvas
         const selected = this.editor.selection.getSelected();
-        const parent = (selected && selected.dataset.container === 'true') ? selected : this.editor.canvas;
+        const parent   = (selected?.dataset.container === 'true') ? selected : this.editor.canvas;
 
-        // Nếu parent flex/grid -> relative
         if (['flex', 'grid'].includes(parent.style.display)) {
             el.style.position = 'relative';
             el.style.left = '';
-            el.style.top = '';
+            el.style.top  = '';
         }
 
         parent.appendChild(el);
-
-        eventBus.emit('history:push', {
-            type: 'add',
-            element: el,
-            parent: parent
-        });
-
+        eventBus.emit('history:push', { type: 'add', element: el, parent });
         eventBus.emit('element:added', el);
         eventBus.emit('layer:refresh');
         this.editor.selection.select(el);
-
-        this._showNotification(`Template "${template.name}" inserted.`);
+        this._showNotification(`"${tpl.name}" inserted.`);
     }
 
-    /** Rename template */
-    _renameTemplate(index) {
-        const template = this.templates[index];
-        const name = prompt('New name:', template.name);
-        if (!name) return;
+    // ─────────────────────────────────────────────
+    //  Preview Modal
+    // ─────────────────────────────────────────────
 
-        template.name = name;
-        this._saveToStorage();
-        this._render();
+    _showPreview(tpl) {
+        const modal = document.createElement('div');
+        modal.className = 'tpl-preview-modal';
+
+        const box = document.createElement('div');
+        box.className = 'tpl-preview-box';
+
+        const header = document.createElement('div');
+        header.className = 'tpl-preview-header';
+        header.innerHTML = `
+            <div>
+                <strong>${tpl.name}</strong>
+                <span class="tpl-preview-meta">${tpl.pages} page${tpl.pages !== 1 ? 's' : ''} · ${tpl.category}</span>
+            </div>
+            <button class="tpl-preview-close">✕</button>
+        `;
+        header.querySelector('.tpl-preview-close').addEventListener('click', () => modal.remove());
+
+        const body = document.createElement('div');
+        body.className = 'tpl-preview-body';
+
+        // Thumbnail large
+        const img = document.createElement('div');
+        img.className = 'tpl-preview-thumb';
+        if (tpl.thumbnail) img.style.backgroundImage = `url("${tpl.thumbnail}")`;
+        body.appendChild(img);
+
+        // Description
+        const desc = document.createElement('p');
+        desc.className   = 'tpl-preview-desc';
+        desc.textContent = tpl.description || '';
+        body.appendChild(desc);
+
+        // Page list
+        if (tpl.pages_data) {
+            const pageList = document.createElement('div');
+            pageList.className = 'tpl-preview-pages';
+            pageList.innerHTML = `<strong>Pages:</strong> ${tpl.pages_data.map(p => p.name).join(', ')}`;
+            body.appendChild(pageList);
+        }
+
+        const footer = document.createElement('div');
+        footer.className = 'tpl-preview-footer';
+
+        const btnNew = document.createElement('button');
+        btnNew.className   = 'tpl-btn tpl-btn-primary';
+        btnNew.textContent = 'New Project';
+        btnNew.addEventListener('click', () => { modal.remove(); this._insertAsNewProject(tpl); });
+
+        const btnInsert = document.createElement('button');
+        btnInsert.className   = 'tpl-btn';
+        btnInsert.textContent = 'Insert Pages';
+        btnInsert.addEventListener('click', () => { modal.remove(); this._insertPages(tpl); });
+
+        footer.appendChild(btnNew);
+        footer.appendChild(btnInsert);
+
+        box.appendChild(header);
+        box.appendChild(body);
+        box.appendChild(footer);
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
     }
 
-    /** Delete template */
-    _deleteTemplate(index) {
-        const template = this.templates[index];
-        if (!confirm(`Delete template "${template.name}"?`)) return;
+    // ─────────────────────────────────────────────
+    //  User Templates (save / delete)
+    // ─────────────────────────────────────────────
 
-        this.templates.splice(index, 1);
-        this._saveToStorage();
-        this._render();
-    }
-
-    /** Export tất cả templates ra file JSON */
-    _exportTemplates() {
-        if (this.templates.length === 0) {
-            this._showNotification('No templates to export.');
+    _saveSelectionAsUserTemplate() {
+        const el = this.editor.selection.getSelected();
+        if (!el) {
+            this._showNotification('Select an element first.');
             return;
         }
 
-        const json = JSON.stringify(this.templates, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `templates-${Date.now()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
+        const name = prompt('Template name:', el.dataset.name || el.dataset.type || 'My Template');
+        if (name === null) return;
 
-    /** Import templates từ file JSON */
-    _importTemplates() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const imported = JSON.parse(event.target.result);
-                    if (!Array.isArray(imported)) {
-                        throw new Error('Invalid format');
-                    }
-                    // Merge với templates hiện có, tránh trùng id
-                    const existingIds = new Set(this.templates.map(t => t.id));
-                    const newTemplates = imported.filter(t => !existingIds.has(t.id));
-                    this.templates = [...newTemplates, ...this.templates];
-                    this._saveToStorage();
-                    this._render();
-                    this._showNotification(`Imported ${newTemplates.length} template(s).`);
-                } catch (err) {
-                    console.error('Failed to import templates:', err);
-                    this._showNotification('Invalid template file.');
-                }
-            };
-            reader.readAsText(file);
-        });
-        input.click();
-    }
-
-    /** Serialize element thành JSON (recursive) */
-    _serializeElement(el) {
-        const obj = {
-            tag: el.tagName.toLowerCase(),
-            type: el.dataset.type || '',
-            name: el.dataset.name || '',
-            container: el.dataset.container === 'true',
-            style: {},
-            attributes: {},
-            innerHTML: '',
-            children: []
+        const tpl = {
+            id:        `tpl-${Date.now()}-${Math.random().toString(36).substr(2, ELEMENT_ID_RANDOM_LENGTH)}`,
+            name:      name || 'My Template',
+            _isUser:   true,
+            timestamp: Date.now(),
+            type:      el.dataset.type || el.tagName.toLowerCase(),
+            data:      this._serializeElement(el)
         };
 
-        // Style
+        this._userTemplates.unshift(tpl);
+        this._saveUserTemplates();
+        this._render();
+        this._showNotification(`"${tpl.name}" saved.`);
+    }
+
+    _deleteUserTemplate(id) {
+        this._userTemplates = this._userTemplates.filter(t => t.id !== id);
+        this._saveUserTemplates();
+        this._render();
+    }
+
+    _loadUserTemplates() {
+        try {
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : [];
+        } catch { return []; }
+    }
+
+    _saveUserTemplates() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this._userTemplates));
+        } catch (e) {
+            console.warn('[TemplateManager] Failed to save user templates:', e);
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  Helpers
+    // ─────────────────────────────────────────────
+
+    /**
+     * Regen IDs on all pages_data to avoid duplicate IDs across inserts.
+     * @param {object[]} pagesData
+     * @returns {object[]}
+     */
+    _regenPageIds(pagesData) {
+        return pagesData.map(page => {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = page.html;
+            // Regen all element IDs
+            tempDiv.querySelectorAll('[data-editor-element]').forEach(el => {
+                el.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, ELEMENT_ID_RANDOM_LENGTH)}`;
+            });
+            return {
+                ...page,
+                id:   `page-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                html: tempDiv.innerHTML,
+                historyState: { undoStack: [], redoStack: [] }
+            };
+        });
+    }
+
+    _serializeElement(el) {
+        const obj = {
+            tag:       el.tagName.toLowerCase(),
+            type:      el.dataset.type || '',
+            name:      el.dataset.name || '',
+            container: el.dataset.container === 'true',
+            style:     {},
+            attributes: {},
+            innerHTML: '',
+            children:  []
+        };
+
         const style = el.style;
         for (let i = 0; i < style.length; i++) {
             const prop = style[i];
             obj.style[prop] = style.getPropertyValue(prop);
         }
 
-        // Attributes
         ['href', 'src', 'alt', 'placeholder', 'type', 'value'].forEach(attr => {
-            if (el.hasAttribute(attr)) {
-                obj.attributes[attr] = el.getAttribute(attr);
-            }
+            if (el.hasAttribute(attr)) obj.attributes[attr] = el.getAttribute(attr);
         });
 
-        // Children (editor elements)
         const editorChildren = Array.from(el.querySelectorAll(':scope > [data-editor-element]'));
         if (editorChildren.length > 0) {
-            editorChildren.forEach(child => {
-                obj.children.push(this._serializeElement(child));
-            });
+            editorChildren.forEach(child => obj.children.push(this._serializeElement(child)));
         } else {
-            // Lưu innerHTML cho non-editor content (text, input children, etc.)
             obj.innerHTML = el.innerHTML || '';
         }
 
         return obj;
     }
 
-    /** Deserialize JSON thành element (recursive) */
     _deserializeElement(data) {
         const el = document.createElement(data.tag || 'div');
         el.setAttribute('data-editor-element', '');
-        el.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        el.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, ELEMENT_ID_RANDOM_LENGTH)}`;
 
-        if (data.type) el.dataset.type = data.type;
-        if (data.name) el.dataset.name = data.name;
+        if (data.type)      el.dataset.type = data.type;
+        if (data.name)      el.dataset.name = data.name;
         if (data.container) el.dataset.container = 'true';
 
-        // Style
         if (data.style) {
-            Object.entries(data.style).forEach(([prop, value]) => {
-                el.style.setProperty(prop, value);
-            });
+            Object.entries(data.style).forEach(([prop, val]) => el.style.setProperty(prop, val));
         }
-
-        // Attributes
         if (data.attributes) {
-            Object.entries(data.attributes).forEach(([attr, value]) => {
-                el.setAttribute(attr, value);
-            });
+            Object.entries(data.attributes).forEach(([attr, val]) => el.setAttribute(attr, val));
         }
 
-        // Children hoặc innerHTML
-        if (data.children && data.children.length > 0) {
-            data.children.forEach(childData => {
-                const child = this._deserializeElement(childData);
-                el.appendChild(child);
-            });
+        if (data.children?.length > 0) {
+            data.children.forEach(c => el.appendChild(this._deserializeElement(c)));
         } else if (data.innerHTML) {
             el.innerHTML = data.innerHTML;
         }
@@ -381,21 +540,13 @@ export class TemplateManager {
         return el;
     }
 
-    /** Hiển thị notification tạm */
     _showNotification(message) {
         const notif = document.createElement('div');
-        notif.style.cssText = `
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: #333; color: #fff; padding: 10px 20px; border-radius: 6px;
-            font-size: 12px; z-index: 999999; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            animation: fadeIn 0.2s ease;
-        `;
+        notif.className   = 'editor-notification';
         notif.textContent = message;
         document.body.appendChild(notif);
-
         setTimeout(() => {
             notif.style.opacity = '0';
-            notif.style.transition = 'opacity 0.3s ease';
             setTimeout(() => notif.remove(), 300);
         }, 2000);
     }

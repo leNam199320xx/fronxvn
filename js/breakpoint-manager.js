@@ -14,12 +14,9 @@
  *   - Property panel đọc/ghi vào breakpoint đang active
  */
 import eventBus from './event-bus.js';
+import { BREAKPOINTS } from './config.js';
 
-export const BREAKPOINTS = {
-    desktop: { label: 'Desktop', icon: '🖥', width: null,  mediaQuery: null },
-    tablet:  { label: 'Tablet',  icon: '📱', width: 768,   mediaQuery: '(max-width: 768px)' },
-    mobile:  { label: 'Mobile',  icon: '📲', width: 375,   mediaQuery: '(max-width: 375px)' }
-};
+export { BREAKPOINTS }; // re-export để các module cũ import từ đây vẫn hoạt động
 
 export class BreakpointManager {
     constructor(editor) {

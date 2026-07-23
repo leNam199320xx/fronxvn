@@ -55,16 +55,14 @@ export class LayerPanel {
 
     /** Render một node */
     _renderNode(el, parent, depth) {
-        const isHidden = el.dataset.hidden === 'true';
+        const isHidden    = el.dataset.hidden === 'true';
+        const isComponent = !!el.dataset.componentId;
 
         const item = document.createElement('div');
         item.className = 'layer-item';
-        if (this.selectedElements.includes(el)) {
-            item.classList.add('selected');
-        }
-        if (isHidden) {
-            item.classList.add('hidden');
-        }
+        if (this.selectedElements.includes(el)) item.classList.add('selected');
+        if (isHidden)    item.classList.add('hidden');
+        if (isComponent) item.classList.add('is-component');
         item.dataset.elementId = el.id;
 
         // Indent
@@ -92,7 +90,8 @@ export class LayerPanel {
         // Icon
         const icon = document.createElement('span');
         icon.className = 'layer-icon';
-        icon.textContent = this._getIcon(el.dataset.type);
+        // Component instance dùng icon riêng
+        icon.textContent = el.dataset.componentId ? '⬡' : this._getIcon(el.dataset.type);
         item.appendChild(icon);
 
         // Name
@@ -100,6 +99,15 @@ export class LayerPanel {
         name.className = 'layer-name';
         name.textContent = el.dataset.name || el.dataset.type || el.tagName.toLowerCase();
         item.appendChild(name);
+
+        // Component badge
+        if (el.dataset.componentId) {
+            const badge = document.createElement('span');
+            badge.className = 'layer-comp-badge';
+            badge.title = 'Component instance';
+            badge.textContent = '⬡';
+            item.appendChild(badge);
+        }
 
         // Actions: visibility toggle + lock indicator
         const actions = document.createElement('span');

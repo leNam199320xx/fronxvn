@@ -120,18 +120,45 @@ Full CSS editing for the selected element:
 
 Right-click any element on canvas:
 
-- Duplicate, Delete
-- Lock / Unlock
-- Group / Ungroup
-- Move to top / Move to bottom
+- Copy / Paste / Duplicate / Delete
+- **Lock / Unlock** (toggle, Ctrl+L)
+- **Hide / Show** (toggle, Ctrl+H)
+- **Bring to Front / Send to Back** (Ctrl+Shift+] / Ctrl+Shift+[)
+- **Move Forward / Move Backward** (Ctrl+] / Ctrl+[)
+- **Wrap in Container** — bọc selection trong div container mới
+- Group / Ungroup (Ctrl+G / Ctrl+Shift+G)
+- Save as Template / **Save as Component**
+- **Detach Instance** — tách component instance thành plain HTML (chỉ hiện khi element là instance)
 
 ### Template Manager
 
 Predefined layout templates that can be inserted onto the canvas.
 
-### Theme Manager
+- **6 built-in templates**: Landing Page, Portfolio (3 pages), Blog (2 pages), Restaurant (2 pages), Pricing, Coming Soon
+- **Filter bar**: All / Landing / Portfolio / Blog / Business / Saved
+- **Search**: filter by name or description
+- **Insert modes**: "New Project" (replace current with confirm) or "Insert Pages" (append to existing project)
+- **Preview modal**: see template description, page list and thumbnail before inserting
+- **User templates**: save any selected element as a reusable template, stored in localStorage
 
-Global CSS variable tokens (colors, typography, spacing, border radius, shadows).
+### Component System
+
+- **Save as Component** — lưu selected elements thành ComponentDefinition (id, name, html, bpStyles, thumbnail)
+- **Component Panel** — tab "Components" trong right panel, grid thumbnail, click để insert instance
+- **Instance** — element trên canvas có `data-component-id` và `data-instance-id`, icon ⬡ trong layer tree
+- **Update Definition** — chọn instance, click "↑ Update" để sync HTML mới xuống tất cả instances
+- **Detach** — tách instance thành plain HTML, mất link với definition
+- **Delete Component** — auto-detach tất cả instances trước khi xóa definition
+- **Undo/Redo** cho insert và detach
+- **Export** — component refs bị loại bỏ, export ra plain HTML thuần
+
+### HTML Quality Engine
+
+- Tự động scan canvas sau mỗi thay đổi (debounce 800ms)
+- **10 checks**: `alt-missing`, `empty-heading`, `label-missing`, `duplicate-id`, `element-too-small`, `deep-nesting`, `missing-h1`, `low-contrast` (WCAG AA 4.5:1), `empty-link`, `autoplay-video`
+- **Visual badges** trên canvas: 🔴 error / 🟡 warning / 🔵 info tại góc trên-phải element
+- **Quality Panel** — tab "Quality" trong right panel, issues grouped by severity, "Go to" và "Fix" (auto-fix cho một số lỗi)
+- **Quality Score** 0–100 trên toolbar, màu xanh/cam/đỏ, click mở tab Quality
 
 ### Project Save / Load
 
@@ -166,24 +193,37 @@ fronxvn/
 └── js/
     ├── editor.js           # Main orchestrator, initializes all modules
     ├── event-bus.js        # Singleton EventBus — central pub/sub communication
+    ├── config.js           # All config constants (single source of truth)
     ├── page-manager.js     # Multi-page CRUD, Tab Bar, per-page history swap
-    ├── project.js          # Save/load project JSON (v2.0), auto-save to localStorage
+    ├── project.js          # Save/load project JSON (v2.1), auto-save to localStorage
     ├── export.js           # Export HTML/CSS/JSON, ZIP multi-page download
     ├── history.js          # Undo/redo stack (per active page)
     ├── selection.js        # Click/shift-click/rubber-band selection
-    ├── overlay.js          # Selection box, resize handles, rotation handle, hover
-    ├── drag.js             # Move elements by dragging
+    ├── overlay.js          # Selection box, resize handles, rotation handle, hover, quality badges
+    ├── drag.js             # Move elements by dragging (Alt+drag to duplicate)
     ├── resize.js           # Resize elements via handles
     ├── rotate.js           # Rotate elements via rotation handle
     ├── alignment.js        # Align/distribute selected elements
     ├── clipboard.js        # Copy/paste/cut/duplicate
     ├── group-manager.js    # Group/ungroup elements
-    ├── context-menu.js     # Right-click context menu for elements
+    ├── context-menu.js     # Right-click context menu (lock, hide, z-order, wrap, component)
     ├── property-panel.js   # Left panel — CSS property editor
-    ├── layer-panel.js      # Right panel — layer tree view
+    ├── layer-panel.js      # Right panel — layer tree view (with component instance badge)
     ├── element-panel.js    # Right panel — element library
-    ├── template-manager.js # Right panel — layout templates
-    └── breakpoint-manager.js # Breakpoint switching and per-bp style overrides
+    ├── template-manager.js # Right panel — Template Marketplace (6 built-ins + user templates)
+    ├── breakpoint-manager.js # Breakpoint switching and per-bp style overrides
+    ├── quality-engine.js   # HTML quality scanner — 10 checks, score 0-100
+    ├── quality-panel.js    # Right panel — Issues list, Go to, Fix, quality score badge
+    ├── component-manager.js # Component save/insert/update/detach/delete
+    ├── component-panel.js  # Right panel — Component library grid
+    └── templates/
+        ├── index.js        # Barrel export + CATEGORIES
+        ├── landing-page.js
+        ├── portfolio.js
+        ├── blog-post.js
+        ├── restaurant.js
+        ├── pricing.js
+        └── coming-soon.js
 ```
 
 ### Architecture
@@ -231,11 +271,18 @@ Key events:
 | Ctrl+D | Duplicate |
 | Ctrl+G | Group |
 | Ctrl+Shift+G | Ungroup |
+| Ctrl+L | Lock / Unlock toggle |
+| Ctrl+H | Hide / Show toggle |
+| Ctrl+] | Move Forward |
+| Ctrl+[ | Move Backward |
+| Ctrl+Shift+] | Bring to Front |
+| Ctrl+Shift+[ | Send to Back |
 | Delete / Backspace | Delete selected element |
 | Arrow keys | Move element 1px |
 | Shift+Arrow keys | Move element 10px |
 | Space+drag | Pan canvas |
 | Ctrl+Scroll | Zoom |
+| Alt+Drag | Duplicate & move copy |
 
 ---
 
@@ -296,10 +343,16 @@ Responsive breakpoints, undo/redo, clipboard, alignment, groups, context menu, t
 ### v0.3 ✅
 Multi-page project, per-page history, ZIP export, auto-save v2.0, backward compatibility
 
-### v0.4
-Template Marketplace, Component system, HTML Quality Engine (semantic, a11y, SEO, performance scores)
+### v0.4 ✅
+HTML Quality Engine — 10 checks, visual badges, issues panel, quality score, auto-fix
 
-### v0.5
+### v0.5 ✅
+Component System — save/insert/update/detach, component panel, layer badge, undo/redo, export-safe
+
+### v0.6 ✅
+Template Marketplace — 6 built-in templates, filter/search, New Project / Insert Pages modes, preview modal
+
+### v0.7
 Cloud Save, Cloud Publish, Forms API, Authentication
 
 ### v1.0

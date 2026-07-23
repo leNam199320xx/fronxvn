@@ -49,6 +49,12 @@
                 <button id="btn-bp-mobile" title="Mobile (375px)" data-bp="mobile">📲</button>
                 <span class="viewport-label" id="viewport-label">Desktop</span>
             </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <button id="btn-quality" class="quality-score-btn" title="HTML Quality Score">
+                    <span id="quality-score-label">Q: —</span>
+                </button>
+            </div>
             <span class="coords-display" id="coords-display">X: 0 Y: 0</span>
         </div>
 
@@ -86,6 +92,8 @@
                     <div class="panel-tab" data-tab="templates">Templates</div>
                     <div class="panel-tab" data-tab="layers">Layers</div>
                     <div class="panel-tab" data-tab="theme">Theme</div>
+                    <div class="panel-tab" data-tab="quality">Quality</div>
+                    <div class="panel-tab" data-tab="components">Components</div>
                 </div>
                 <div class="panel-tab-content active" data-tab-content="elements">
                     <!-- Element library content sẽ được render bởi JS -->
@@ -98,6 +106,12 @@
                 </div>
                 <div class="panel-tab-content" data-tab-content="theme">
                     <!-- Theme manager sẽ được render bởi JS -->
+                </div>
+                <div class="panel-tab-content" data-tab-content="quality">
+                    <!-- Quality panel sẽ được render bởi JS -->
+                </div>
+                <div class="panel-tab-content" data-tab-content="components">
+                    <!-- Component panel sẽ được render bởi JS -->
                 </div>
             </div>
         </div>

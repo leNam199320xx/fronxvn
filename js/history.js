@@ -114,6 +114,18 @@ export class History {
                 eventBus.emit('element:updated', action.element);
                 break;
 
+            case 'css-bulk':
+                // Undo bulk CSS: restore toàn bộ style từ before string
+                action.element.removeAttribute('style');
+                (action.before || '').split('\n').forEach(line => {
+                    const clean = line.trim().replace(/;$/, '');
+                    const idx   = clean.indexOf(':');
+                    if (idx === -1) return;
+                    action.element.style.setProperty(clean.slice(0, idx).trim(), clean.slice(idx + 1).trim());
+                });
+                eventBus.emit('element:updated', action.element);
+                break;
+
             case 'add':
                 action.element.remove();
                 eventBus.emit('element:deleted', action.element);
@@ -168,6 +180,40 @@ export class History {
                 eventBus.emit('element:added', action.groupEl);
                 eventBus.emit('layer:refresh');
                 break;
+
+            case 'component:insert':
+                // Undo insert: xóa instance khỏi canvas
+                action.element.remove();
+                eventBus.emit('element:deleted', action.element);
+                eventBus.emit('layer:refresh');
+                break;
+
+            case 'component:detach':
+                // Undo detach: restore component attrs lên element
+                action.element.dataset.componentId = action.componentId;
+                action.element.dataset.instanceId  = action.instanceId;
+                eventBus.emit('element:updated', action.element);
+                eventBus.emit('layer:refresh');
+                break;
+
+            // ── Page operations ────────────────────────────────────────────────
+            case 'page:add':
+                // Undo page add: xóa trang (không push history lại)
+                this.editor.pageManager.deletePage(action.pageId, { pushHistory: false });
+                break;
+
+            case 'page:delete':
+                // Undo page delete: restore trang từ snapshot
+                this.editor.pageManager._restorePageFromSnapshot(
+                    action.pageSnapshot,
+                    action.insertIdx
+                );
+                break;
+
+            case 'page:rename':
+                // Undo rename: đặt lại tên cũ
+                this.editor.pageManager.renamePage(action.pageId, action.before, { pushHistory: false });
+                break;
         }
     }
 
@@ -202,6 +248,18 @@ export class History {
 
             case 'style':
                 action.element.style[action.prop] = action.after;
+                eventBus.emit('element:updated', action.element);
+                break;
+
+            case 'css-bulk':
+                // Redo bulk CSS: restore toàn bộ style từ after string
+                action.element.removeAttribute('style');
+                (action.after || '').split('\n').forEach(line => {
+                    const clean = line.trim().replace(/;$/, '');
+                    const idx   = clean.indexOf(':');
+                    if (idx === -1) return;
+                    action.element.style.setProperty(clean.slice(0, idx).trim(), clean.slice(idx + 1).trim());
+                });
                 eventBus.emit('element:updated', action.element);
                 break;
 
@@ -256,6 +314,49 @@ export class History {
                 action.groupEl.remove();
                 eventBus.emit('element:deleted', action.groupEl);
                 eventBus.emit('layer:refresh');
+                break;
+
+            case 'component:insert':
+                // Redo insert: chèn lại instance
+                if (action.nextSibling && action.parent.contains(action.nextSibling)) {
+                    action.parent.insertBefore(action.element, action.nextSibling);
+                } else {
+                    action.parent.appendChild(action.element);
+                }
+                eventBus.emit('element:added', action.element);
+                eventBus.emit('layer:refresh');
+                break;
+
+            case 'component:detach':
+                // Redo detach: xóa component attrs
+                action.element.removeAttribute('data-component-id');
+                action.element.removeAttribute('data-instance-id');
+                eventBus.emit('element:updated', action.element);
+                eventBus.emit('layer:refresh');
+                break;
+
+            // ── Page operations ────────────────────────────────────────────────
+            case 'page:add':
+                // Redo page add: tạo lại trang (không push history)
+                // Restore từ snapshot nếu có, hoặc addPage mới
+                if (action.pageSnapshot) {
+                    this.editor.pageManager._restorePageFromSnapshot(
+                        action.pageSnapshot,
+                        action.insertIdx
+                    );
+                } else {
+                    this.editor.pageManager.addPage({ pushHistory: false });
+                }
+                break;
+
+            case 'page:delete':
+                // Redo page delete: xóa trang lại
+                this.editor.pageManager.deletePage(action.pageId, { pushHistory: false });
+                break;
+
+            case 'page:rename':
+                // Redo rename: đặt lại tên mới
+                this.editor.pageManager.renamePage(action.pageId, action.after, { pushHistory: false });
                 break;
         }
     }

@@ -5,11 +5,22 @@
  */
 import eventBus from './event-bus.js';
 
+/** Map severity → emoji badge */
+const SEVERITY_BADGE = { error: '🔴', warning: '🟡', info: '🔵' };
+
 export class Overlay {
     constructor(editor) {
         this.editor = editor;
         this.layer = editor.overlayLayer;
         this.selectedElements = [];
+
+        /** @type {Map<HTMLElement, HTMLElement>} element → badge DOM node */
+        this._badges = new Map();
+
+        this._isMoving   = false;
+        this._isResizing = false;
+        this._isRotating = false;
+        this._hideLabelTimer = null;
 
         this._createOverlayElements();
         this._bindEvents();
@@ -127,9 +138,9 @@ export class Overlay {
         });
 
         // Scroll / Zoom / Resize -> cập nhật overlay
-        eventBus.on('canvas:scroll', () => this._refreshOverlay());
-        eventBus.on('canvas:zoom', () => this._refreshOverlay());
-        eventBus.on('canvas:resize', () => this._refreshOverlay());
+        eventBus.on('canvas:scroll', () => { this._refreshOverlay(); this._refreshBadges(); });
+        eventBus.on('canvas:zoom',   () => { this._refreshOverlay(); this._refreshBadges(); });
+        eventBus.on('canvas:resize', () => { this._refreshOverlay(); this._refreshBadges(); });
 
         // Page switch — xóa toàn bộ overlay và guides
         eventBus.on('overlay:clear', () => {
@@ -142,6 +153,44 @@ export class Overlay {
         // Rubber-band events từ drag.js
         eventBus.on('rubber-band:update', (rect) => this._updateRubberBand(rect));
         eventBus.on('rubber-band:end', () => this._hideRubberBand());
+
+        // ── Quality badges ─────────────────────────────────────────────────────
+        eventBus.on('quality:updated', ({ issues }) => {
+            this._updateQualityBadges(issues);
+        });
+
+        // ── Realtime indicators khi drag ──────────────────────────────────────
+        eventBus.on('drag:start', () => {
+            this._isMoving = true;
+            this._showRealtimeLabels();
+        });
+
+        eventBus.on('drag:end', () => {
+            this._isMoving = false;
+            this._scheduleHideLabels();
+        });
+
+        // ── Realtime indicators khi resize ────────────────────────────────────
+        eventBus.on('resize:start', () => {
+            this._isResizing = true;
+            this._showRealtimeLabels();
+        });
+
+        eventBus.on('resize:end', () => {
+            this._isResizing = false;
+            this._scheduleHideLabels();
+        });
+
+        // ── Realtime indicators khi rotate ────────────────────────────────────
+        eventBus.on('rotate:start', () => {
+            this._isRotating = true;
+            this._showRealtimeLabels();
+        });
+
+        eventBus.on('rotate:end', () => {
+            this._isRotating = false;
+            this._scheduleHideLabels();
+        });
     }
 
     /** Hiển thị overlay */
@@ -204,18 +253,48 @@ export class Overlay {
     _updateSingleOverlay(el) {
         const rect = this._getElementScreenRect(el);
 
-        this.selectionBox.style.left = rect.left + 'px';
-        this.selectionBox.style.top = rect.top + 'px';
-        this.selectionBox.style.width = rect.width + 'px';
+        this.selectionBox.style.left   = rect.left   + 'px';
+        this.selectionBox.style.top    = rect.top    + 'px';
+        this.selectionBox.style.width  = rect.width  + 'px';
         this.selectionBox.style.height = rect.height + 'px';
 
-        const w = Math.round(parseFloat(el.style.width) || el.offsetWidth);
+        const w = Math.round(parseFloat(el.style.width)  || el.offsetWidth);
         const h = Math.round(parseFloat(el.style.height) || el.offsetHeight);
-        this.dimensionLabel.textContent = `${w} × ${h}`;
+        const x = Math.round(parseFloat(el.style.left)   || 0);
+        const y = Math.round(parseFloat(el.style.top)    || 0);
 
-        const x = Math.round(parseFloat(el.style.left) || 0);
-        const y = Math.round(parseFloat(el.style.top) || 0);
-        this.positionLabel.textContent = `${x}, ${y}`;
+        this.dimensionLabel.textContent = `${w} × ${h}`;
+        this.positionLabel.textContent  = `${x}, ${y}`;
+
+        // Khi đang thao tác: dimension luôn hiện
+        if (this._isResizing || this._isMoving || this._isRotating) {
+            this.dimensionLabel.style.display = 'block';
+            // Position hiện thêm khi đang di chuyển
+            this.positionLabel.style.display = this._isMoving ? 'block' : 'none';
+        }
+    }
+
+    /**
+     * Bắt label hiện ngay khi bắt đầu thao tác.
+     */
+    _showRealtimeLabels() {
+        if (this.selectedElements.length !== 1) return;
+        clearTimeout(this._hideLabelTimer);
+        this.dimensionLabel.style.display = 'block';
+        this.positionLabel.style.display  = this._isMoving ? 'block' : 'none';
+    }
+
+    /**
+     * Ẩn position label sau 1s khi dừng thao tác.
+     * Dimension label ẩn theo _setHandlesVisible() khi deselect.
+     */
+    _scheduleHideLabels() {
+        clearTimeout(this._hideLabelTimer);
+        this._hideLabelTimer = setTimeout(() => {
+            if (!this._isMoving && !this._isResizing && !this._isRotating) {
+                this.positionLabel.style.display = 'none';
+            }
+        }, 1000);
     }
 
     /** Overlay bounding box cho nhiều element */
@@ -275,5 +354,76 @@ export class Overlay {
             width: elRect.width,
             height: elRect.height
         };
+    }
+
+    // ─────────────────────────────────────────────
+    //  Quality Badges
+    // ─────────────────────────────────────────────
+
+    /**
+     * Cập nhật toàn bộ badge dựa trên issues mới nhất.
+     * @param {import('./quality-engine.js').Issue[]} issues
+     */
+    _updateQualityBadges(issues) {
+        // Xóa tất cả badge cũ
+        this._badges.forEach(badge => badge.remove());
+        this._badges.clear();
+
+        // Nhóm issues theo element (ưu tiên severity cao nhất)
+        const elMap = new Map(); // element → worst severity
+        issues.forEach(issue => {
+            if (!issue.element) return;
+            const current = elMap.get(issue.element);
+            if (!current || this._severityRank(issue.severity) > this._severityRank(current)) {
+                elMap.set(issue.element, issue.severity);
+            }
+        });
+
+        // Tạo badge cho từng element có issue
+        elMap.forEach((severity, el) => {
+            const badge = document.createElement('div');
+            badge.className = `quality-badge quality-badge-${severity}`;
+            badge.textContent = SEVERITY_BADGE[severity];
+            badge.title = `Quality issue: ${severity}`;
+
+            // Vị trí: góc trên-phải của element (relative to overlay layer)
+            this._positionBadge(badge, el);
+
+            badge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                eventBus.emit('quality:badge-click', el);
+            });
+
+            this.layer.appendChild(badge);
+            this._badges.set(el, badge);
+        });
+    }
+
+    /**
+     * Đặt badge tại góc trên-phải của element.
+     * @param {HTMLElement} badge
+     * @param {HTMLElement} el
+     */
+    _positionBadge(badge, el) {
+        const rect = this._getElementScreenRect(el);
+        badge.style.position = 'absolute';
+        badge.style.left = (rect.left + rect.width - 10) + 'px';
+        badge.style.top  = (rect.top - 10) + 'px';
+    }
+
+    /** Cập nhật vị trí tất cả badge (khi scroll/zoom) */
+    _refreshBadges() {
+        this._badges.forEach((badge, el) => {
+            this._positionBadge(badge, el);
+        });
+    }
+
+    /**
+     * Rank severity để so sánh.
+     * @param {'error'|'warning'|'info'} s
+     * @returns {number}
+     */
+    _severityRank(s) {
+        return { error: 3, warning: 2, info: 1 }[s] || 0;
     }
 }

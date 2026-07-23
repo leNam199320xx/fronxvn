@@ -86,6 +86,9 @@ export class PropertyPanel {
             const sectionEl = this._createSection(section);
             this.panel.appendChild(sectionEl);
         });
+
+        // ── Inline CSS Editor section ──────────────────────────────────────
+        this.panel.appendChild(this._createCSSEditorSection());
     }
 
     /** Tạo một section */
@@ -315,6 +318,9 @@ export class PropertyPanel {
                 input.value = value || '';
             }
         });
+
+        // Sync CSS editor nếu đang mở
+        this._updateCSSEditor();
     }
 
     /** Xóa giá trị khi bỏ chọn */
@@ -487,4 +493,210 @@ export class PropertyPanel {
             { label: 'Skew', prop: 'skew', type: 'text', placeholder: '0deg' }
         ];
     }
+
+    // ─────────────────────────────────────────────
+    //  Inline CSS Editor (3d)
+    // ─────────────────────────────────────────────
+
+    /**
+     * Tạo section "CSS" với textarea cho raw CSS editing.
+     * Sync 2 chiều: thay đổi inline fields → cập nhật textarea, và ngược lại.
+     */
+    _createCSSEditorSection() {
+        const section = document.createElement('div');
+        section.className = 'panel-section';
+        section.dataset.section = 'css-editor';
+
+        const header = document.createElement('div');
+        header.className = 'panel-section-header collapsed';
+        header.innerHTML = `CSS <span class="arrow">▶</span>`;
+
+        const body = document.createElement('div');
+        body.className = 'panel-section-body collapsed';
+        body.style.padding = '0';
+
+        // Toolbar
+        const toolbar = document.createElement('div');
+        toolbar.className = 'css-editor-toolbar';
+
+        const btnCopy = document.createElement('button');
+        btnCopy.className = 'css-editor-btn';
+        btnCopy.textContent = 'Copy';
+        btnCopy.addEventListener('click', () => {
+            navigator.clipboard.writeText(textarea.value);
+            btnCopy.textContent = 'Copied!';
+            setTimeout(() => { btnCopy.textContent = 'Copy'; }, 1500);
+        });
+
+        const btnApply = document.createElement('button');
+        btnApply.className = 'css-editor-btn css-editor-btn-primary';
+        btnApply.textContent = 'Apply';
+        btnApply.title = 'Apply CSS (Ctrl+Enter)';
+
+        toolbar.appendChild(btnCopy);
+        toolbar.appendChild(btnApply);
+
+        // Textarea
+        const textarea = document.createElement('textarea');
+        textarea.className = 'css-editor-textarea';
+        textarea.placeholder = '/* Write raw CSS here */\ncolor: red;\nfont-size: 16px;';
+        textarea.spellcheck = false;
+        textarea.id = 'css-editor-textarea';
+
+        // Apply on Ctrl+Enter
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                this._applyCSSFromEditor(textarea.value);
+            }
+            e.stopPropagation(); // ngăn editor shortcuts
+        });
+
+        btnApply.addEventListener('click', () => this._applyCSSFromEditor(textarea.value));
+
+        // Error display
+        const errorEl = document.createElement('div');
+        errorEl.className = 'css-editor-error';
+        errorEl.style.display = 'none';
+
+        body.appendChild(toolbar);
+        body.appendChild(textarea);
+        body.appendChild(errorEl);
+
+        header.addEventListener('click', () => {
+            const collapsed = header.classList.toggle('collapsed');
+            body.classList.toggle('collapsed', collapsed);
+            const arrow = header.querySelector('.arrow');
+            if (arrow) arrow.textContent = collapsed ? '▶' : '▼';
+            // Populate textarea khi mở lần đầu
+            if (!collapsed && this.selectedElement) {
+                textarea.value = this._serializeElementCSS(this.selectedElement);
+            }
+        });
+
+        section.appendChild(header);
+        section.appendChild(body);
+
+        // Lưu ref để update khi element thay đổi
+        section._textarea = textarea;
+        section._errorEl = errorEl;
+        this._cssEditorSection = section;
+
+        return section;
+    }
+
+    /**
+     * Serialize inline style của element thành text CSS.
+     * Format: "property: value;\nproperty: value;\n..."
+     * @param {HTMLElement} el
+     * @returns {string}
+     */
+    _serializeElementCSS(el) {
+        const lines = [];
+        const style = el.style;
+        for (let i = 0; i < style.length; i++) {
+            const prop = style[i];
+            const value = style.getPropertyValue(prop);
+            if (value) lines.push(`${prop}: ${value};`);
+        }
+        return lines.join('\n');
+    }
+
+    /**
+     * Parse và apply raw CSS string vào element.
+     * Sync ngược lại với property panel fields sau khi apply.
+     * @param {string} css
+     */
+    _applyCSSFromEditor(css) {
+        if (!this.selectedElement) return;
+
+        const errorEl = this._cssEditorSection?._errorEl;
+        if (errorEl) errorEl.style.display = 'none';
+
+        // Lưu snapshot trước để history có thể rollback
+        const beforeCSS = this._serializeElementCSS(this.selectedElement);
+
+        // Parse từng dòng
+        const errors = [];
+        const applied = {};
+
+        css.split('\n').forEach((line, lineNum) => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('/*')) return;
+
+            // Loại bỏ trailing ";"
+            const clean = trimmed.endsWith(';') ? trimmed.slice(0, -1) : trimmed;
+            const colonIdx = clean.indexOf(':');
+            if (colonIdx === -1) {
+                errors.push(`Line ${lineNum + 1}: missing ":"`);
+                return;
+            }
+
+            const prop  = clean.slice(0, colonIdx).trim();
+            const value = clean.slice(colonIdx + 1).trim();
+
+            if (!prop) {
+                errors.push(`Line ${lineNum + 1}: empty property`);
+                return;
+            }
+
+            applied[prop] = value;
+        });
+
+        if (errors.length > 0 && errorEl) {
+            errorEl.textContent = errors.join(' | ');
+            errorEl.style.display = 'block';
+            // Vẫn apply các property hợp lệ
+        }
+
+        // Clear existing inline styles rồi apply lại toàn bộ
+        // (để xóa được các props đã bị user remove khỏi textarea)
+        this.selectedElement.removeAttribute('style');
+
+        Object.entries(applied).forEach(([prop, value]) => {
+            try {
+                this.selectedElement.style.setProperty(prop, value);
+
+                // Sync vào breakpoint store
+                if (this.editor.breakpointManager) {
+                    const camelProp = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+                    this.editor.breakpointManager.setStyle(this.selectedElement, camelProp, value);
+                }
+            } catch (e) {
+                if (errorEl) {
+                    errorEl.textContent = (errorEl.textContent || '') + ` | Invalid: ${prop}`;
+                    errorEl.style.display = 'block';
+                }
+            }
+        });
+
+        // Push history dưới dạng bulk style change
+        eventBus.emit('history:push', {
+            type: 'css-bulk',
+            element: this.selectedElement,
+            before: beforeCSS,
+            after: css
+        });
+
+        eventBus.emit('element:updated', this.selectedElement);
+
+        // Sync property panel fields
+        this._updateValues();
+    }
+
+    /**
+     * Cập nhật CSS editor textarea khi element thay đổi từ bên ngoài.
+     * Chỉ cập nhật nếu section đang mở.
+     */
+    _updateCSSEditor() {
+        if (!this._cssEditorSection) return;
+        const body = this._cssEditorSection.querySelector('.panel-section-body');
+        if (!body || body.classList.contains('collapsed')) return;
+
+        const textarea = this._cssEditorSection._textarea;
+        if (textarea && this.selectedElement) {
+            textarea.value = this._serializeElementCSS(this.selectedElement);
+        }
+    }
 }
+

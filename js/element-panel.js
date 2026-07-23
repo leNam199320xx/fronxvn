@@ -3,6 +3,7 @@
  * Click để thêm vào phần tử đang chọn hoặc canvas
  */
 import eventBus from './event-bus.js';
+import { ELEMENT_ID_RANDOM_LENGTH } from './config.js';
 
 export class ElementPanel {
     constructor(editor) {
@@ -403,7 +404,7 @@ export class ElementPanel {
         }
 
         // Tạo ID unique
-        el.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        el.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, ELEMENT_ID_RANDOM_LENGTH)}`;
         el.dataset.name = item.label;
 
         return el;

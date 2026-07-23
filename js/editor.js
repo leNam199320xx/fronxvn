@@ -25,6 +25,11 @@ import { ProjectManager } from './project.js';
 import { TemplateManager } from './template-manager.js';
 import { BreakpointManager } from './breakpoint-manager.js';
 import { GroupManager } from './group-manager.js';
+import { QualityEngine } from './quality-engine.js';
+import { QualityPanel } from './quality-panel.js';
+import { ComponentManager } from './component-manager.js';
+import { ComponentPanel } from './component-panel.js';
+import { ThemeManager } from './theme-manager.js';
 
 class Editor {
     constructor() {
@@ -96,6 +101,17 @@ class Editor {
         // PageManager phải được khởi tạo sau tất cả module khác
         // vì nó dùng this.history, this.selection, v.v.
         this.pageManager = new PageManager(this);
+
+        // QualityEngine + QualityPanel — khởi tạo sau PageManager
+        this.qualityEngine = new QualityEngine(this);
+        this.qualityPanel  = new QualityPanel(this);
+
+        // ComponentManager + ComponentPanel — khởi tạo sau QualityEngine
+        this.componentManager = new ComponentManager(this);
+        this.componentPanel   = new ComponentPanel(this);
+
+        // ThemeManager — khởi tạo sau tất cả modules
+        this.themeManager = new ThemeManager(this);
     }
 
     /** Khởi tạo toolbar */
@@ -343,6 +359,42 @@ class Editor {
         if (ctrl && e.key === 'd') {
             e.preventDefault();
             eventBus.emit('clipboard:duplicate');
+            return;
+        }
+        // Ctrl+L: Lock/Unlock toggle
+        if (ctrl && !shift && e.key === 'l') {
+            e.preventDefault();
+            eventBus.emit('element:lock-toggle');
+            return;
+        }
+        // Ctrl+H: Hide/Show toggle
+        if (ctrl && !shift && e.key === 'h') {
+            e.preventDefault();
+            eventBus.emit('element:hide-toggle');
+            return;
+        }
+        // Ctrl+Shift+]: Bring to Front
+        if (ctrl && shift && e.key === ']') {
+            e.preventDefault();
+            eventBus.emit('element:bring-front');
+            return;
+        }
+        // Ctrl+]: Move Forward
+        if (ctrl && !shift && e.key === ']') {
+            e.preventDefault();
+            eventBus.emit('element:move-forward');
+            return;
+        }
+        // Ctrl+[: Move Backward
+        if (ctrl && !shift && e.key === '[') {
+            e.preventDefault();
+            eventBus.emit('element:move-backward');
+            return;
+        }
+        // Ctrl+Shift+[: Send to Back
+        if (ctrl && shift && e.key === '[') {
+            e.preventDefault();
+            eventBus.emit('element:send-back');
             return;
         }
         // Delete / Backspace
