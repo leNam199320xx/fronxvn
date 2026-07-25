@@ -8,6 +8,7 @@
  * - Rubber-band selection (kéo vùng chọn) — được trigger bởi drag.js
  */
 import eventBus from './event-bus.js';
+import { SELECTION_EDIT_OUTLINE } from './config.js';
 
 export class Selection {
     constructor(editor) {
@@ -165,7 +166,7 @@ export class Selection {
         el.contentEditable = 'true';
         el.focus();
         el.style.cursor = 'text';
-        el.style.outline = '2px solid #0078d4';
+        el.style.outline = SELECTION_EDIT_OUTLINE;
 
         const range = document.createRange();
         range.selectNodeContents(el);

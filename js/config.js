@@ -1,64 +1,145 @@
 /**
- * config.js — Tất cả các hằng số cấu hình của HTML Studio
+ * config.js — Barrel re-export từ js/config/
  *
- * Đây là file duy nhất chứa config values.
- * Không import bất kỳ module nào để tránh circular dependency.
+ * Giữ nguyên đường dẫn cũ để các module cũ vẫn hoạt động.
+ * Các module mới nên import trực tiếp từ js/config/<file>.js
  */
 
-// ─── Canvas & Zoom ────────────────────────────────────────────────────────────
-export const ZOOM_DEFAULT         = 1;
-export const ZOOM_MIN             = 0.25;
-export const ZOOM_MAX             = 3;
-export const ZOOM_STEP            = 0.1;
+// ─── Editor ───────────────────────────────────────────────────────────────────
+export {
+    ARROW_NUDGE,
+    ARROW_NUDGE_SHIFT,
+    ZOOM_DEFAULT,
+    ZOOM_MIN,
+    ZOOM_MAX,
+    ZOOM_STEP,
+    HISTORY_MAX_SIZE,
+    PASTE_OFFSET,
+    AUTOSAVE_DELAY_MS,
+    AUTOLOAD_DELAY_MS,
+    AUTOSAVE_STORAGE_KEY,
+    PROJECT_VERSION,
+    CANVAS_INNER_PADDING,
+    SNAP_THRESHOLD,
+    DRAG_MIN_DISTANCE,
+    ELEMENT_MIN_SIZE,
+    ROTATE_SNAP_ANGLE,
+    ELEMENT_ID_RANDOM_LENGTH,
+    COMPONENT_ID_RANDOM_LENGTH,
+    PAGE_ID_RANDOM_LENGTH
+} from './config/editor.js';
 
-// ─── Grid ─────────────────────────────────────────────────────────────────────
-export const GRID_SIZE            = 10;     // px
-export const GRID_ENABLED_DEFAULT = true;
-
-// ─── Canvas dimensions ────────────────────────────────────────────────────────
-export const CANVAS_DEFAULT_WIDTH  = '2000px';
-export const CANVAS_DEFAULT_HEIGHT = '2000px';
-export const CANVAS_MARGIN         = 50;   // px — margin quanh canvas trong container
-
-// ─── Drag & Snap ──────────────────────────────────────────────────────────────
-export const SNAP_THRESHOLD    = 5;        // px — khoảng cách để snap vào element khác
-export const DRAG_MIN_DISTANCE = 5;        // px — rubber-band nhỏ hơn này bị bỏ qua
-
-// ─── Resize ───────────────────────────────────────────────────────────────────
-export const ELEMENT_MIN_SIZE  = 20;       // px — kích thước tối thiểu khi resize
-
-// ─── Rotate ───────────────────────────────────────────────────────────────────
-export const ROTATE_SNAP_ANGLE = 15;       // degrees — Shift+rotate snap theo bội số này
-
-// ─── History ──────────────────────────────────────────────────────────────────
-export const HISTORY_MAX_SIZE  = 100;      // số actions tối đa trong undo stack
-
-// ─── Clipboard & Paste ────────────────────────────────────────────────────────
-export const PASTE_OFFSET      = 20;       // px — offset X/Y khi paste hoặc duplicate
-
-// ─── Element ID generation ────────────────────────────────────────────────────
-export const ELEMENT_ID_RANDOM_LENGTH = 5; // số ký tự random trong element id
-
-// ─── Project / Auto-save ──────────────────────────────────────────────────────
-export const AUTOSAVE_STORAGE_KEY = 'editor-project-autosave';
-export const AUTOSAVE_DELAY_MS    = 1000;  // ms — debounce delay trước khi auto-save
-export const AUTOLOAD_DELAY_MS    = 100;   // ms — delay trước khi auto-load khi init
-export const PROJECT_VERSION      = '2.2';
-
-// ─── Component System ─────────────────────────────────────────────────────────
-export const COMPONENT_ID_RANDOM_LENGTH = 5; // số ký tự random trong component id
-
-// ─── Page Manager ─────────────────────────────────────────────────────────────
-export const TAB_NAME_MAX_LENGTH   = 20;   // ký tự — tên tab dài hơn sẽ bị truncate
-export const PAGE_ID_RANDOM_LENGTH = 5;    // số ký tự random trong page id
-
-// ─── Breakpoints ──────────────────────────────────────────────────────────────
-export const BREAKPOINTS = {
-    desktop: { label: 'Desktop', icon: '🖥', width: null, mediaQuery: null },
-    tablet:  { label: 'Tablet',  icon: '📱', width: 768,  mediaQuery: '(max-width: 768px)' },
-    mobile:  { label: 'Mobile',  icon: '📲', width: 375,  mediaQuery: '(max-width: 375px)' }
-};
+// ─── Canvas ───────────────────────────────────────────────────────────────────
+export {
+    CANVAS_DEFAULT_WIDTH,
+    CANVAS_DEFAULT_HEIGHT,
+    CANVAS_MARGIN,
+    GRID_SIZE,
+    GRID_ENABLED_DEFAULT
+} from './config/canvas.js';
 
 // ─── Export ───────────────────────────────────────────────────────────────────
-export const JSZIP_CDN_URL  = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
-export const EXPORT_INDENT  = '    ';      // 4 spaces — indent trong HTML export
+export {
+    JSZIP_CDN_URL,
+    EXPORT_INDENT,
+    EXPORT_MODAL_ZINDEX,
+    EXPORT_MODAL_BG,
+    EXPORT_DIALOG_WIDTH,
+    EXPORT_DIALOG_MAX_HEIGHT,
+    EXPORT_DIALOG_BORDER_RADIUS,
+    EXPORT_DIALOG_BG,
+    EXPORT_DIALOG_BORDER,
+    EXPORT_DIALOG_BOX_SHADOW,
+    EXPORT_TEXTAREA_HEIGHT,
+    EXPORT_TEXTAREA_BG,
+    EXPORT_TEXTAREA_COLOR,
+    EXPORT_TEXTAREA_BORDER,
+    EXPORT_TEXTAREA_PADDING,
+    EXPORT_TEXTAREA_BORDER_RADIUS,
+    EXPORT_TEXTAREA_FONT_FAMILY,
+    EXPORT_TEXTAREA_FONT_SIZE,
+    EXPORT_COPY_RESET_DELAY,
+    EXPORT_BTN_PADDING,
+    EXPORT_BTN_BORDER_RADIUS,
+    EXPORT_BTN_FONT_SIZE,
+    EXPORT_BODY_PADDING,
+    EXPORT_HEADER_PADDING,
+    EXPORT_HEADER_BORDER_BOTTOM,
+    EXPORT_HEADER_COLOR,
+    EXPORT_HEADER_FONT_SIZE,
+    EXPORT_HEADER_FONT_WEIGHT,
+    EXPORT_CLOSE_BTN_COLOR,
+    EXPORT_CLOSE_BTN_FONT_SIZE,
+    EXPORT_TAB_PADDING,
+    EXPORT_TAB_COLOR,
+    EXPORT_TAB_ACTIVE_COLOR,
+    EXPORT_TABS_BORDER_BOTTOM,
+    EXPORT_FOOTER_PADDING,
+    EXPORT_FOOTER_BORDER_TOP,
+    EXPORT_FOOTER_GAP,
+    EXPORT_ZIP_BTN_COLOR,
+    EXPORT_DOWNLOAD_BTN_BG,
+    EXPORT_DOWNLOAD_BTN_COLOR,
+    SEO_PANEL_COLOR,
+    SEO_PANEL_FONT_SIZE,
+    SEO_ROW_MARGIN_BOTTOM,
+    SEO_LABEL_COLOR,
+    SEO_LABEL_FONT_SIZE,
+    SEO_TEXTAREA_HEIGHT,
+    SEO_INPUT_PADDING,
+    SEO_INPUT_BORDER_COLOR,
+    SEO_INPUT_FOCUS_BORDER_COLOR
+} from './config/export.js';
+
+// ─── Quality ──────────────────────────────────────────────────────────────────
+export {
+    QUALITY_SCORE_INITIAL,
+    QUALITY_SCORE_GOOD,
+    QUALITY_SCORE_WARN,
+    QUALITY_SCAN_DELAY,
+    QUALITY_RESCAN_AFTER_FIX_DELAY,
+    QUALITY_PENALTY_ERROR,
+    QUALITY_PENALTY_WARNING,
+    QUALITY_PENALTY_INFO,
+    QUALITY_WCAG_LUMINANCE_THRESHOLD,
+    QUALITY_WCAG_LUMINANCE_R,
+    QUALITY_WCAG_LUMINANCE_G,
+    QUALITY_WCAG_LUMINANCE_B,
+    QUALITY_WCAG_CONTRAST_AA,
+    QUALITY_MAX_NESTING_DEPTH,
+    QUALITY_MIN_ELEMENT_SIZE
+} from './config/quality.js';
+
+// ─── Breakpoints ──────────────────────────────────────────────────────────────
+export {
+    BREAKPOINTS,
+    TAB_NAME_MAX_LENGTH,
+    BREAKPOINT_LABEL_TABLET,
+    BREAKPOINT_LABEL_MOBILE
+} from './config/breakpoints.js';
+
+// ─── Theme ────────────────────────────────────────────────────────────────────
+export {
+    THEME_DEFAULTS,
+    DEFAULT_ELEMENT_POSITION,
+    DEFAULT_COLOR_FALLBACK,
+    LAYER_INDENT_PER_LEVEL,
+    OVERLAY_BADGE_OFFSET,
+    OVERLAY_HIDE_LABEL_DELAY,
+    SELECTION_EDIT_OUTLINE,
+    COMPONENT_INSERT_BASE_X,
+    COMPONENT_INSERT_BASE_Y,
+    COMPONENT_INSERT_RANDOM_MAX,
+    RENAME_INPUT_MIN_WIDTH,
+    RENAME_INPUT_CHAR_WIDTH,
+    NOTIFICATION_DISPLAY_DURATION,
+    NOTIFICATION_FADE_DELAY,
+    THUMBNAIL_WIDTH,
+    THUMBNAIL_HEIGHT,
+    THUMBNAIL_BG,
+    THUMBNAIL_INNER_FILL,
+    THUMBNAIL_STROKE,
+    THUMBNAIL_STROKE_WIDTH,
+    THUMBNAIL_FONT_SIZE,
+    THUMBNAIL_TEXT_COLOR
+} from './config/theme.js';

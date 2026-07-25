@@ -3,7 +3,8 @@
  * Giữ nguyên style khi paste/duplicate
  */
 import eventBus from './event-bus.js';
-import { PASTE_OFFSET, ELEMENT_ID_RANDOM_LENGTH } from './config.js';
+import { PASTE_OFFSET } from './config.js';
+import { generateElementId } from './core/ids.js';
 
 export class Clipboard {
     constructor(editor) {
@@ -62,7 +63,7 @@ export class Clipboard {
 
         const newElements = this.clipboardData.map(template => {
             const clone = template.cloneNode(true);
-            clone.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, ELEMENT_ID_RANDOM_LENGTH)}`;
+            clone.id = generateElementId();
             const left = (parseFloat(clone.style.left) || 0) + PASTE_OFFSET;
             const top  = (parseFloat(clone.style.top)  || 0) + PASTE_OFFSET;
             clone.style.left = left + 'px';
@@ -89,7 +90,7 @@ export class Clipboard {
 
         const newElements = elements.map(el => {
             const clone = el.cloneNode(true);
-            clone.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, ELEMENT_ID_RANDOM_LENGTH)}`;
+            clone.id = generateElementId();
             const left = (parseFloat(clone.style.left) || 0) + PASTE_OFFSET;
             const top  = (parseFloat(clone.style.top)  || 0) + PASTE_OFFSET;
             clone.style.left = left + 'px';

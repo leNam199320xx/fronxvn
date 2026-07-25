@@ -194,9 +194,9 @@ fronxvn/
     ├── editor.js           # Main orchestrator, initializes all modules
     ├── event-bus.js        # Singleton EventBus — central pub/sub communication
     ├── config.js           # All config constants (single source of truth)
-    ├── page-manager.js     # Multi-page CRUD, Tab Bar, per-page history swap
-    ├── project.js          # Save/load project JSON (v2.1), auto-save to localStorage
-    ├── export.js           # Export HTML/CSS/JSON, ZIP multi-page download
+    ├── page-manager/       # Multi-page CRUD, Tab Bar, per-page history swap
+    ├── project/            # Save/load project JSON (v2.1), auto-save to localStorage
+    ├── export/              # Export HTML/CSS/JSON, ZIP multi-page download (modular)
     ├── history.js          # Undo/redo stack (per active page)
     ├── selection.js        # Click/shift-click/rubber-band selection
     ├── overlay.js          # Selection box, resize handles, rotation handle, hover, quality badges
@@ -207,23 +207,15 @@ fronxvn/
     ├── clipboard.js        # Copy/paste/cut/duplicate
     ├── group-manager.js    # Group/ungroup elements
     ├── context-menu.js     # Right-click context menu (lock, hide, z-order, wrap, component)
-    ├── property-panel.js   # Left panel — CSS property editor
+    ├── property-panel/       # Left panel — modular CSS property editor (layout, spacing, typography, background, border, effects, transform, responsive)
     ├── layer-panel.js      # Right panel — layer tree view (with component instance badge)
     ├── element-panel.js    # Right panel — element library
-    ├── template-manager.js # Right panel — Template Marketplace (6 built-ins + user templates)
+    ├── templates/            # Template Marketplace (6 built-ins + user templates, modular)
     ├── breakpoint-manager.js # Breakpoint switching and per-bp style overrides
-    ├── quality-engine.js   # HTML quality scanner — 10 checks, score 0-100
+    ├── quality/             # HTML quality scanner — 10 checks, score 0-100 (modular)
     ├── quality-panel.js    # Right panel — Issues list, Go to, Fix, quality score badge
-    ├── component-manager.js # Component save/insert/update/detach/delete
-    ├── component-panel.js  # Right panel — Component library grid
-    └── templates/
-        ├── index.js        # Barrel export + CATEGORIES
-        ├── landing-page.js
-        ├── portfolio.js
-        ├── blog-post.js
-        ├── restaurant.js
-        ├── pricing.js
-        └── coming-soon.js
+    ├── components/          # Component save/insert/update/detach/delete (modular)
+    └── component-panel.js  # Right panel — Component library grid
 ```
 
 ### Architecture

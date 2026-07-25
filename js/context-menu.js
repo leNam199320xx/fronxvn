@@ -5,6 +5,7 @@
  * Save as Template
  */
 import eventBus from './event-bus.js';
+import { generateElementId } from './core/ids.js';
 
 export class ContextMenu {
     constructor(editor) {
@@ -261,7 +262,7 @@ export class ContextMenu {
             // Tạo container
             const container = document.createElement('div');
             container.setAttribute('data-editor-element', '');
-            container.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+            container.id = generateElementId();
             container.dataset.type = 'container';
             container.dataset.name = 'Container';
             container.dataset.container = 'true';

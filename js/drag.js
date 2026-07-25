@@ -9,6 +9,8 @@
  */
 import eventBus from './event-bus.js';
 import { SNAP_THRESHOLD, DRAG_MIN_DISTANCE } from './config.js';
+import { generateElementId } from './core/ids.js';
+import { cloneDeep } from './core/clone.js';
 
 export class Drag {
     constructor(editor) {
@@ -127,8 +129,8 @@ export class Drag {
     _duplicateForDrag(elements) {
         const copies = elements.map(el => {
             const clone = el.cloneNode(true);
-            clone.id = `el-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-            if (el.__bpStyles) clone.__bpStyles = JSON.parse(JSON.stringify(el.__bpStyles));
+            clone.id = generateElementId();
+            if (el.__bpStyles) clone.__bpStyles = cloneDeep(el.__bpStyles);
             el.parentNode.insertBefore(clone, el.nextSibling);
             eventBus.emit('history:push', { type: 'add', element: clone, parent: el.parentNode });
             eventBus.emit('element:added', clone);

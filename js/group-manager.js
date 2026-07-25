@@ -5,7 +5,7 @@
  * - Hỗ trợ undo/redo qua history
  */
 import eventBus from './event-bus.js';
-import { ELEMENT_ID_RANDOM_LENGTH } from './config.js';
+import { generateElementId } from './core/ids.js';
 
 export class GroupManager {
     constructor(editor) {
@@ -64,7 +64,7 @@ export class GroupManager {
         groupEl.dataset.type      = 'group';
         groupEl.dataset.container = 'true';
         groupEl.dataset.name      = 'Group';
-        groupEl.id = `el-${Date.now()}-${Math.random().toString(36).substring(2, 2 + ELEMENT_ID_RANDOM_LENGTH)}`;
+        groupEl.id = generateElementId();
         groupEl.style.position = 'absolute';
         groupEl.style.left     = groupLeft   + 'px';
         groupEl.style.top      = groupTop    + 'px';

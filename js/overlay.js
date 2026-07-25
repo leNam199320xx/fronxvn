@@ -4,6 +4,7 @@
  * Hỗ trợ multi-selection: hiển thị bounding box chung.
  */
 import eventBus from './event-bus.js';
+import { OVERLAY_HIDE_LABEL_DELAY, OVERLAY_BADGE_OFFSET } from './config.js';
 
 /** Map severity → emoji badge */
 const SEVERITY_BADGE = { error: '🔴', warning: '🟡', info: '🔵' };
@@ -294,7 +295,7 @@ export class Overlay {
             if (!this._isMoving && !this._isResizing && !this._isRotating) {
                 this.positionLabel.style.display = 'none';
             }
-        }, 1000);
+        }, OVERLAY_HIDE_LABEL_DELAY);
     }
 
     /** Overlay bounding box cho nhiều element */
@@ -362,7 +363,7 @@ export class Overlay {
 
     /**
      * Cập nhật toàn bộ badge dựa trên issues mới nhất.
-     * @param {import('./quality-engine.js').Issue[]} issues
+      * @param {import('./quality/index.js').Issue[]} issues
      */
     _updateQualityBadges(issues) {
         // Xóa tất cả badge cũ
@@ -407,8 +408,8 @@ export class Overlay {
     _positionBadge(badge, el) {
         const rect = this._getElementScreenRect(el);
         badge.style.position = 'absolute';
-        badge.style.left = (rect.left + rect.width - 10) + 'px';
-        badge.style.top  = (rect.top - 10) + 'px';
+        badge.style.left = (rect.left + rect.width - OVERLAY_BADGE_OFFSET) + 'px';
+        badge.style.top  = (rect.top - OVERLAY_BADGE_OFFSET) + 'px';
     }
 
     /** Cập nhật vị trí tất cả badge (khi scroll/zoom) */

@@ -3,6 +3,8 @@
  * Cho phép: expand, collapse, rename, drag đổi thứ tự, chọn, xóa, duplicate
  */
 import eventBus from './event-bus.js';
+import { LAYER_INDENT_PER_LEVEL, SELECTION_EDIT_OUTLINE } from './config.js';
+import { inlineRename } from './ui/utils.js';
 
 export class LayerPanel {
     constructor(editor) {
@@ -68,7 +70,7 @@ export class LayerPanel {
         // Indent
         const indent = document.createElement('span');
         indent.className = 'layer-indent';
-        indent.style.width = (depth * 16) + 'px';
+        indent.style.width = (depth * LAYER_INDENT_PER_LEVEL) + 'px';
         item.appendChild(indent);
 
         // Toggle (nếu có children)
@@ -148,7 +150,7 @@ export class LayerPanel {
         });
         item.addEventListener('dragover', (e) => {
             e.preventDefault();
-            item.style.borderBottom = '2px solid #0078d4';
+            item.style.borderBottom = SELECTION_EDIT_OUTLINE;
         });
         item.addEventListener('dragleave', () => {
             item.style.borderBottom = '';
@@ -200,25 +202,11 @@ export class LayerPanel {
 
     /** Bắt đầu rename */
     _startRename(el, nameSpan) {
-        const input = document.createElement('input');
-        input.className = 'layer-name-input';
-        input.value = el.dataset.name || el.dataset.type || '';
-
-        nameSpan.replaceWith(input);
-        input.focus();
-        input.select();
-
-        const finish = () => {
-            el.dataset.name = input.value || el.dataset.type;
-            this._render();
-        };
-
-        input.addEventListener('blur', finish);
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') input.blur();
-            if (e.key === 'Escape') {
-                input.value = el.dataset.name || el.dataset.type;
-                input.blur();
+        inlineRename(nameSpan, el.dataset.name || el.dataset.type || '', {
+            inputClassName: 'layer-name-input',
+            onCommit: (newName) => {
+                el.dataset.name = newName || el.dataset.type;
+                this._render();
             }
         });
     }

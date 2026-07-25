@@ -4,6 +4,7 @@
  * Cũng quản lý Quality Score badge trên toolbar.
  */
 import eventBus from './event-bus.js';
+import { QUALITY_SCORE_INITIAL, QUALITY_RESCAN_AFTER_FIX_DELAY, QUALITY_SCORE_GOOD, QUALITY_SCORE_WARN } from './config.js';
 
 const SEVERITY_ICON  = { error: '🔴', warning: '🟡', info: '🔵' };
 const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
@@ -12,7 +13,7 @@ export class QualityPanel {
     constructor(editor) {
         this.editor  = editor;
         this.issues  = [];
-        this.score   = 100;
+        this.score   = QUALITY_SCORE_INITIAL;
 
         this._container  = document.querySelector('[data-tab-content="quality"]');
         this._scoreLabel = document.getElementById('quality-score-label');
@@ -99,7 +100,7 @@ export class QualityPanel {
 
     /**
      * Tạo DOM cho một issue item.
-     * @param {import('./quality-engine.js').Issue} issue
+      * @param {import('./quality/index.js').Issue} issue
      * @returns {HTMLElement}
      */
     _buildIssueItem(issue) {
@@ -146,7 +147,7 @@ export class QualityPanel {
             fixBtn.addEventListener('click', () => {
                 issue.autofix();
                 // Rescan sau fix
-                setTimeout(() => this.editor.qualityEngine?.scanNow(), 100);
+                setTimeout(() => this.editor.qualityEngine?.scanNow(), QUALITY_RESCAN_AFTER_FIX_DELAY);
             });
             actions.appendChild(fixBtn);
         }
@@ -165,9 +166,9 @@ export class QualityPanel {
 
         // Màu theo score
         this._scoreBtn.classList.remove('q-score-good', 'q-score-warn', 'q-score-bad');
-        if (this.score >= 80) {
+        if (this.score >= QUALITY_SCORE_GOOD) {
             this._scoreBtn.classList.add('q-score-good');
-        } else if (this.score >= 60) {
+        } else if (this.score >= QUALITY_SCORE_WARN) {
             this._scoreBtn.classList.add('q-score-warn');
         } else {
             this._scoreBtn.classList.add('q-score-bad');

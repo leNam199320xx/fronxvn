@@ -14,7 +14,7 @@
  *   - Property panel đọc/ghi vào breakpoint đang active
  */
 import eventBus from './event-bus.js';
-import { BREAKPOINTS } from './config.js';
+import { BREAKPOINTS, CANVAS_DEFAULT_WIDTH } from './config.js';
 
 export { BREAKPOINTS }; // re-export để các module cũ import từ đây vẫn hoạt động
 
@@ -81,7 +81,7 @@ export class BreakpointManager {
             this.editor.canvas.style.minWidth = bpData.width + 'px';
         } else {
             this.editor.canvas.style.width = '';
-            this.editor.canvas.style.minWidth = '2000px';
+            this.editor.canvas.style.minWidth = CANVAS_DEFAULT_WIDTH;
         }
     }
 

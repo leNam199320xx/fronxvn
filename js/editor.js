@@ -5,29 +5,35 @@
 import eventBus from './event-bus.js';
 import {
     ZOOM_DEFAULT, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP,
-    GRID_SIZE, GRID_ENABLED_DEFAULT
+    GRID_SIZE, GRID_ENABLED_DEFAULT,
+    ARROW_NUDGE, ARROW_NUDGE_SHIFT,
+    HISTORY_MAX_SIZE, PASTE_OFFSET,
+    AUTOSAVE_DELAY_MS, AUTOLOAD_DELAY_MS,
+    AUTOSAVE_STORAGE_KEY, PROJECT_VERSION,
+    CANVAS_INNER_PADDING,
+    BREAKPOINT_LABEL_TABLET, BREAKPOINT_LABEL_MOBILE
 } from './config.js';
 import { Selection } from './selection.js';
 import { Overlay } from './overlay.js';
 import { Drag } from './drag.js';
 import { Resize } from './resize.js';
 import { Rotate } from './rotate.js';
-import { PropertyPanel } from './property-panel.js';
+import { PropertyPanel } from './property-panel/index.js';
 import { ElementPanel } from './element-panel.js';
 import { LayerPanel } from './layer-panel.js';
 import { History } from './history.js';
-import { ContextMenu } from './context-menu.js';
+import { ContextMenu } from './ui/context-menu.js';
 import { Clipboard } from './clipboard.js';
 import { Alignment } from './alignment.js';
-import { PageManager } from './page-manager.js';
-import { ExportManager } from './export.js';
-import { ProjectManager } from './project.js';
-import { TemplateManager } from './template-manager.js';
+import { PageManager } from './page-manager/index.js';
+import { ExportManager } from './export/index.js';
+import { ProjectManager } from './project/index.js';
+import { TemplateManager } from './templates/index.js';
 import { BreakpointManager } from './breakpoint-manager.js';
 import { GroupManager } from './group-manager.js';
-import { QualityEngine } from './quality-engine.js';
+import { QualityEngine } from './quality/index.js';
 import { QualityPanel } from './quality-panel.js';
-import { ComponentManager } from './component-manager.js';
+import { ComponentManager } from './components/index.js';
 import { ComponentPanel } from './component-panel.js';
 import { ThemeManager } from './theme-manager.js';
 
@@ -71,11 +77,38 @@ class Editor {
         this._initTabs();
         this._initModules();
         this._bindEvents();
+
+        // Căn giữa canvas sau khi tất cả modules load xong
+        requestAnimationFrame(() => {
+            this.setZoom(this.zoom); // trigger inner min-height
+            this._centerCanvas();
+        });
     }
 
     /** Khởi tạo canvas */
     _initCanvas() {
         this._updateZoomDisplay();
+    }
+
+    /** Scroll canvas-container để canvas nằm ở giữa viewport */
+    _centerCanvas() {
+        const container = this.canvasContainer;
+        const canvas    = this.canvas;
+        if (!container || !canvas) return;
+
+        // scrollLeft/Top để canvas nằm giữa container
+        const containerW = container.clientWidth;
+        const containerH = container.clientHeight;
+        const innerW     = container.scrollWidth;
+        const innerH     = container.scrollHeight;
+
+        // Chỉ scroll nếu nội dung lớn hơn container
+        if (innerW > containerW) {
+            container.scrollLeft = (innerW - containerW) / 2;
+        }
+        if (innerH > containerH) {
+            container.scrollTop  = (innerH - containerH) / 2;
+        }
     }
 
     /** Khởi tạo các module con */
@@ -161,19 +194,55 @@ class Editor {
                 const bp = btn.dataset.bp;
                 bpButtons.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                viewportLabel.textContent = { desktop: 'Desktop', tablet: 'Tablet (768px)', mobile: 'Mobile (375px)' }[bp];
-                // Update canvas-wrapper class for visual indicator
+                viewportLabel.textContent = { desktop: 'Desktop', tablet: BREAKPOINT_LABEL_TABLET, mobile: BREAKPOINT_LABEL_MOBILE }[bp];
                 this.canvasWrapper.classList.remove('bp-tablet', 'bp-mobile');
                 if (bp !== 'desktop') this.canvasWrapper.classList.add(`bp-${bp}`);
                 eventBus.emit('breakpoint:switch', bp);
             });
         });
 
+        // Panel toggles
+        const btnToggleLeft = document.getElementById('btn-toggle-left');
+        const btnToggleRight = document.getElementById('btn-toggle-right');
+        const panelLeft = document.getElementById('panel-left');
+        const panelRight = document.getElementById('panel-right');
+        const editorMain = document.querySelector('.editor-main');
+
+        if (btnToggleLeft && panelLeft) {
+            btnToggleLeft.addEventListener('click', () => {
+                panelLeft.classList.toggle('hidden');
+                btnToggleLeft.classList.toggle('active');
+            });
+        }
+
+        if (btnToggleRight && panelRight) {
+            btnToggleRight.addEventListener('click', () => {
+                panelRight.classList.toggle('hidden');
+                btnToggleRight.classList.toggle('active');
+            });
+        }
+
         // Listen for breakpoint changes (e.g. from other sources)
         eventBus.on('breakpoint:changed', (bp) => {
             bpButtons.forEach(b => b.classList.toggle('active', b.dataset.bp === bp));
-            viewportLabel.textContent = { desktop: 'Desktop', tablet: 'Tablet (768px)', mobile: 'Mobile (375px)' }[bp];
+            viewportLabel.textContent = { desktop: 'Desktop', tablet: BREAKPOINT_LABEL_TABLET, mobile: BREAKPOINT_LABEL_MOBILE }[bp];
         });
+
+        // Fullscreen
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        if (btnFullscreen) {
+            btnFullscreen.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                    editorMain?.classList.add('fullscreen');
+                    btnFullscreen.classList.add('active');
+                } else {
+                    document.exitFullscreen().catch(() => {});
+                    editorMain?.classList.remove('fullscreen');
+                    btnFullscreen.classList.remove('active');
+                }
+            });
+        }
     }
 
     /** Khởi tạo tab switching cho right panel */
@@ -406,7 +475,7 @@ class Editor {
         // Arrow keys: di chuyển phần tử
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
             e.preventDefault();
-            const amount = shift ? 10 : 1;
+            const amount = shift ? ARROW_NUDGE_SHIFT : ARROW_NUDGE;
             let dx = 0, dy = 0;
             if (e.key === 'ArrowUp') dy = -amount;
             if (e.key === 'ArrowDown') dy = amount;
@@ -429,16 +498,29 @@ class Editor {
 
     /** Reset zoom */
     zoomReset() {
-        this.setZoom(1);
+        this.setZoom(ZOOM_DEFAULT);
     }
 
     /** Set zoom level */
     setZoom(level) {
         this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, level));
         this.zoom = Math.round(this.zoom * 100) / 100;
-        this.canvasContainer.style.transform = `scale(${this.zoom})`;
-        this.canvasContainer.style.transformOrigin = '0 0';
+
+        // Scale canvas trực tiếp, transform-origin: center center
+        this.canvas.style.transform       = `scale(${this.zoom})`;
+        this.canvas.style.transformOrigin = 'center center';
+
+        // Cập nhật kích thước inner wrapper để scroll area bao đủ canvas sau scale
+        const inner = document.getElementById('canvas-inner');
+        if (inner) {
+            const scaledW = this.canvas.offsetWidth  * this.zoom;
+            const scaledH = this.canvas.offsetHeight * this.zoom;
+            inner.style.minWidth  = `${scaledW + CANVAS_INNER_PADDING}px`;
+            inner.style.minHeight = `${scaledH + CANVAS_INNER_PADDING}px`;
+        }
+
         this._updateZoomDisplay();
+        this._centerCanvas();
         eventBus.emit('canvas:zoom', this.zoom);
     }
 

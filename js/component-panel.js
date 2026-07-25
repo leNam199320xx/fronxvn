@@ -4,6 +4,7 @@
  * Hỗ trợ: rename, delete, update definition, empty state.
  */
 import eventBus from './event-bus.js';
+import { COMPONENT_INSERT_BASE_X, COMPONENT_INSERT_BASE_Y, COMPONENT_INSERT_RANDOM_MAX } from './config.js';
 
 export class ComponentPanel {
     constructor(editor) {
@@ -74,7 +75,7 @@ export class ComponentPanel {
 
     /**
      * Tạo card DOM cho một ComponentDefinition.
-     * @param {import('./component-manager.js').ComponentDefinition} def
+     * @param {import('./components/index.js').ComponentDefinition} def
      * @returns {HTMLElement}
      */
     _buildCard(def) {
@@ -133,8 +134,8 @@ export class ComponentPanel {
         // Click card → insert instance
         card.addEventListener('click', () => {
             // Offset ngẫu nhiên nhỏ để tránh stack lên nhau
-            const offset = Math.floor(Math.random() * 40);
-            this.editor.componentManager.insertComponent(def.id, { x: 60 + offset, y: 60 + offset });
+            const offset = Math.floor(Math.random() * COMPONENT_INSERT_RANDOM_MAX);
+            this.editor.componentManager.insertComponent(def.id, { x: COMPONENT_INSERT_BASE_X + offset, y: COMPONENT_INSERT_BASE_Y + offset });
         });
 
         return card;

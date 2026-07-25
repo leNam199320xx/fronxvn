@@ -51,6 +51,15 @@
             </div>
             <div class="toolbar-separator"></div>
             <div class="toolbar-group">
+                <button id="btn-toggle-left" title="Toggle Left Panel">◀</button>
+                <button id="btn-toggle-right" title="Toggle Right Panel">▶</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <button id="btn-fullscreen" title="Toggle Fullscreen">⛶</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
                 <button id="btn-quality" class="quality-score-btn" title="HTML Quality Score">
                     <span id="quality-score-label">Q: —</span>
                 </button>
@@ -77,8 +86,10 @@
             <!-- Canvas -->
             <div class="canvas-wrapper" id="canvas-wrapper">
                 <div class="canvas-container" id="canvas-container">
-                    <div class="canvas show-grid" id="canvas">
-                        <!-- Elements sẽ được thêm vào đây -->
+                    <div class="canvas-inner" id="canvas-inner">
+                        <div class="canvas show-grid" id="canvas">
+                            <!-- Elements sẽ được thêm vào đây -->
+                        </div>
                     </div>
                 </div>
                 <!-- Overlay layer -->
