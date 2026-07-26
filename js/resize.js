@@ -6,6 +6,10 @@
  */
 import eventBus from './event-bus.js';
 import { ELEMENT_MIN_SIZE } from './config.js';
+import RenderScheduler, { PRIORITY } from '../core/render-scheduler.js';
+import CoordinateSystem from './canvas/coordinate.js';
+import DirtyState, { DIRTY } from '../core/dirty-state.js';
+import CanvasAPI from './canvas/canvas-api.js';
 
 export class Resize {
     constructor(editor) {
@@ -13,6 +17,7 @@ export class Resize {
         this.isResizing = false;
         this.resizeElement = null;
         this.handle = '';
+        this._rafId = null;
         this.startX = 0;
         this.startY = 0;
         this.startRect = null;
@@ -23,28 +28,24 @@ export class Resize {
 
     /** Bind events */
     _bindEvents() {
-        const wrapper = this.editor.canvasWrapper;
-
         // Mousedown trên resize handle
-        wrapper.addEventListener('mousedown', (e) => {
-            const handle = e.target.closest('.resize-handle');
+        eventBus.on('pointer:mousedown', (data) => {
+            if (data.button === 1) return;
+            const handle = CanvasAPI.closest(data.target, '.resize-handle');
             if (handle) {
-                e.preventDefault();
-                e.stopPropagation();
-                this._startResize(e, handle.dataset.handle);
+                this._startResize(data, handle.dataset.handle);
             }
         });
 
-        document.addEventListener('mousemove', (e) => {
+        eventBus.on('pointer:mousemove', (data) => {
             if (this.isResizing) {
-                e.preventDefault();
-                this._handleMouseMove(e);
+                this._handleMouseMove(data);
             }
         });
 
-        document.addEventListener('mouseup', (e) => {
+        eventBus.on('pointer:mouseup', (data) => {
             if (this.isResizing) {
-                this._handleMouseUp(e);
+                this._handleMouseUp(data);
             }
         });
     }
@@ -58,20 +59,23 @@ export class Resize {
         this.isResizing = true;
         this.resizeElement = el;
         this.handle = handle;
-        this.startX = e.clientX;
-        this.startY = e.clientY;
+
+        const start = CoordinateSystem.mousePosition(e);
+        this.startX = start.x;
+        this.startY = start.y;
 
         // Lưu trạng thái ban đầu
         this.startRect = {
-            left: parseFloat(el.style.left) || 0,
-            top: parseFloat(el.style.top) || 0,
-            width: parseFloat(el.style.width) || el.offsetWidth,
-            height: parseFloat(el.style.height) || el.offsetHeight
+            left: parseFloat(CanvasAPI.getStyle(el, 'left')) || 0,
+            top: parseFloat(CanvasAPI.getStyle(el, 'top')) || 0,
+            width: parseFloat(CanvasAPI.getStyle(el, 'width')) || el.offsetWidth,
+            height: parseFloat(CanvasAPI.getStyle(el, 'height')) || el.offsetHeight
         };
 
         this.startState = { ...this.startRect };
 
         document.body.style.cursor = this._getCursor(handle);
+        DirtyState.mark(DIRTY.OVERLAY);
         eventBus.emit('resize:start', el);
     }
 
@@ -79,9 +83,9 @@ export class Resize {
     _handleMouseMove(e) {
         if (!this.resizeElement) return;
 
-        const zoom = this.editor.zoom;
-        const dx = (e.clientX - this.startX) / zoom;
-        const dy = (e.clientY - this.startY) / zoom;
+        const current = CoordinateSystem.mousePosition(e);
+        const dx = current.x - this.startX;
+        const dy = current.y - this.startY;
 
         let { left, top, width, height } = this.startRect;
         const aspectRatio = this.startRect.width / this.startRect.height;
@@ -169,28 +173,34 @@ export class Resize {
             top = this.editor.snapToGrid(top);
         }
 
-        // Cập nhật element
-        this.resizeElement.style.left = left + 'px';
-        this.resizeElement.style.top = top + 'px';
-        this.resizeElement.style.width = width + 'px';
-        this.resizeElement.style.height = height + 'px';
+        // Batch DOM writes via rAF
+        RenderScheduler.schedule('resize-visual', () => {
+            CanvasAPI.setStyle(this.resizeElement, 'left', left + 'px');
+            CanvasAPI.setStyle(this.resizeElement, 'top', top + 'px');
+            CanvasAPI.setStyle(this.resizeElement, 'width', width + 'px');
+            CanvasAPI.setStyle(this.resizeElement, 'height', height + 'px');
 
-        // Emit transform event
-        eventBus.emit('element:transform', this.resizeElement);
+            eventBus.emit('element:transform', this.resizeElement);
+        }, PRIORITY.HIGH);
     }
 
     /** Xử lý mouseup */
     _handleMouseUp(e) {
         if (!this.resizeElement) return;
 
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
+        }
+
         document.body.style.cursor = '';
 
         // Lưu history
         const endRect = {
-            left: parseFloat(this.resizeElement.style.left) || 0,
-            top: parseFloat(this.resizeElement.style.top) || 0,
-            width: parseFloat(this.resizeElement.style.width) || this.resizeElement.offsetWidth,
-            height: parseFloat(this.resizeElement.style.height) || this.resizeElement.offsetHeight
+            left: parseFloat(CanvasAPI.getStyle(this.resizeElement, 'left')) || 0,
+            top: parseFloat(CanvasAPI.getStyle(this.resizeElement, 'top')) || 0,
+            width: parseFloat(CanvasAPI.getStyle(this.resizeElement, 'width')) || this.resizeElement.offsetWidth,
+            height: parseFloat(CanvasAPI.getStyle(this.resizeElement, 'height')) || this.resizeElement.offsetHeight
         };
 
         const changed = Object.keys(endRect).some(key => endRect[key] !== this.startState[key]);

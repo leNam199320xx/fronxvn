@@ -1,5 +1,6 @@
 import { createSection } from './utils.js';
 import eventBus from '../event-bus.js';
+import CanvasAPI from '../canvas/canvas-api.js';
 
 const MARGIN_FIELDS = [
     { label: 'Top', prop: 'marginTop', type: 'text', numeric: true, unit: 'px', placeholder: '0', short: true },
@@ -29,7 +30,7 @@ export function createSpacingTab({ editor, eventBus }) {
                 value = value + 'px';
             }
         }
-        selectedElement.style[prop] = value;
+        CanvasAPI.setStyle(selectedElement, prop, value);
         if (bpManager) {
             bpManager.setStyle(selectedElement, prop, value);
         }

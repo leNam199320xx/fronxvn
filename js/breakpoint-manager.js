@@ -18,6 +18,8 @@ import { BREAKPOINTS, CANVAS_DEFAULT_WIDTH } from './config.js';
 
 export { BREAKPOINTS }; // re-export để các module cũ import từ đây vẫn hoạt động
 
+import debug from './debug.js';
+
 export class BreakpointManager {
     constructor(editor) {
         this.editor = editor;
@@ -50,6 +52,7 @@ export class BreakpointManager {
      * @param {'desktop'|'tablet'|'mobile'} bp
      */
     switchTo(bp) {
+        debug.action('breakpoint', 'switchTo', { from: this.current, to: bp });
         if (!BREAKPOINTS[bp]) return;
 
         // Trước khi switch: snapshot style desktop nếu đang ở desktop
@@ -153,6 +156,7 @@ export class BreakpointManager {
      * Set 1 property cho element tại breakpoint hiện tại
      */
     setStyle(element, prop, value) {
+        debug.action('breakpoint', 'setStyle', { prop, value, bp: this.current });
         this._initElement(element);
         if (!element.__bpStyles[this.current]) {
             element.__bpStyles[this.current] = {};

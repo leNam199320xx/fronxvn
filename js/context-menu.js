@@ -5,6 +5,7 @@
  * Save as Template
  */
 import eventBus from './event-bus.js';
+import CanvasAPI from './canvas/canvas-api.js';
 import { generateElementId } from './core/ids.js';
 
 export class ContextMenu {
@@ -100,11 +101,10 @@ export class ContextMenu {
     /** Bind events */
     _bindEvents() {
         // Right click trên canvas
-        this.editor.canvasWrapper.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            const el = e.target.closest('[data-editor-element]');
+        eventBus.on('pointer:contextmenu', (data) => {
+            const el = CanvasAPI.closest(data.target, '[data-editor-element]');
             this._updateDynamicLabels(el);
-            this._show(e.clientX, e.clientY);
+            this._show(data.clientX, data.clientY);
         });
 
         // Ẩn menu khi click ngoài
@@ -123,7 +123,7 @@ export class ContextMenu {
         // ── Z-order ─────────────────────────────────────────────────────────
         eventBus.on('element:bring-front', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
-                el.parentNode.appendChild(el);
+                CanvasAPI.append(el, el.parentNode);
                 eventBus.emit('history:push', { type: 'reorder', element: el });
                 eventBus.emit('element:updated', el);
             });
@@ -132,7 +132,7 @@ export class ContextMenu {
 
         eventBus.on('element:send-back', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
-                el.parentNode.insertBefore(el, el.parentNode.firstChild);
+                CanvasAPI.prepend(el, el.parentNode);
                 eventBus.emit('history:push', { type: 'reorder', element: el });
                 eventBus.emit('element:updated', el);
             });
@@ -143,7 +143,7 @@ export class ContextMenu {
             this.editor.selection.getSelectedAll().forEach(el => {
                 const next = el.nextElementSibling;
                 if (next && next.dataset.editorElement !== undefined) {
-                    el.parentNode.insertBefore(next, el);
+                    CanvasAPI.insertAfter(el, next, el.parentNode);
                     eventBus.emit('history:push', { type: 'reorder', element: el });
                     eventBus.emit('element:updated', el);
                 }
@@ -155,7 +155,7 @@ export class ContextMenu {
             this.editor.selection.getSelectedAll().forEach(el => {
                 const prev = el.previousElementSibling;
                 if (prev && prev.dataset.editorElement !== undefined) {
-                    el.parentNode.insertBefore(el, prev);
+                    CanvasAPI.insertBefore(el, prev, el.parentNode);
                     eventBus.emit('history:push', { type: 'reorder', element: el });
                     eventBus.emit('element:updated', el);
                 }
@@ -166,12 +166,12 @@ export class ContextMenu {
         // ── Lock/Unlock toggle ───────────────────────────────────────────────
         eventBus.on('element:lock-toggle', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
-                if (el.dataset.locked === 'true') {
-                    delete el.dataset.locked;
-                    el.style.pointerEvents = '';
+                if (CanvasAPI.getAttribute(el, 'data-locked') === 'true') {
+                    CanvasAPI.removeAttribute(el, 'data-locked');
+                    CanvasAPI.setStyle(el, 'pointer-events', '');
                 } else {
-                    el.dataset.locked = 'true';
-                    el.style.pointerEvents = 'none';
+                    CanvasAPI.setAttribute(el, 'data-locked', 'true');
+                    CanvasAPI.setStyle(el, 'pointer-events', 'none');
                 }
                 eventBus.emit('element:updated', el);
             });
@@ -181,15 +181,15 @@ export class ContextMenu {
         // Backward compat
         eventBus.on('element:lock', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
-                el.dataset.locked = 'true';
-                el.style.pointerEvents = 'none';
+                CanvasAPI.setAttribute(el, 'data-locked', 'true');
+                CanvasAPI.setStyle(el, 'pointer-events', 'none');
                 eventBus.emit('element:updated', el);
             });
         });
         eventBus.on('element:unlock', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
-                delete el.dataset.locked;
-                el.style.pointerEvents = '';
+                CanvasAPI.removeAttribute(el, 'data-locked');
+                CanvasAPI.setStyle(el, 'pointer-events', '');
                 eventBus.emit('element:updated', el);
             });
         });
@@ -197,15 +197,15 @@ export class ContextMenu {
         // ── Hide/Show toggle ─────────────────────────────────────────────────
         eventBus.on('element:hide-toggle', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
-                if (el.dataset.hidden === 'true') {
-                    el.dataset.hidden = 'false';
-                    const original = el.dataset.originalDisplay || '';
-                    el.style.display = original;
-                    if (!original) el.style.removeProperty('display');
+                if (CanvasAPI.getAttribute(el, 'data-hidden') === 'true') {
+                    CanvasAPI.setAttribute(el, 'data-hidden', 'false');
+                    const original = CanvasAPI.getAttribute(el, 'data-original-display') || '';
+                    CanvasAPI.setStyle(el, 'display', original);
+                    if (!original) CanvasAPI.removeStyle(el, 'display');
                 } else {
-                    el.dataset.originalDisplay = el.style.display || '';
-                    el.dataset.hidden = 'true';
-                    el.style.display = 'none';
+                    CanvasAPI.setAttribute(el, 'data-original-display', CanvasAPI.getStyle(el, 'display') || '');
+                    CanvasAPI.setAttribute(el, 'data-hidden', 'true');
+                    CanvasAPI.setStyle(el, 'display', 'none');
                 }
                 eventBus.emit('element:updated', el);
             });
@@ -215,10 +215,10 @@ export class ContextMenu {
         // Backward compat
         eventBus.on('element:hide', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
-                if (el.dataset.hidden !== 'true') {
-                    el.dataset.originalDisplay = el.style.display || '';
-                    el.dataset.hidden = 'true';
-                    el.style.display = 'none';
+                if (CanvasAPI.getAttribute(el, 'data-hidden') !== 'true') {
+                    CanvasAPI.setAttribute(el, 'data-original-display', CanvasAPI.getStyle(el, 'display') || '');
+                    CanvasAPI.setAttribute(el, 'data-hidden', 'true');
+                    CanvasAPI.setStyle(el, 'display', 'none');
                     eventBus.emit('element:updated', el);
                 }
             });
@@ -226,11 +226,11 @@ export class ContextMenu {
         });
         eventBus.on('element:show', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
-                if (el.dataset.hidden === 'true') {
-                    el.dataset.hidden = 'false';
-                    const original = el.dataset.originalDisplay || '';
-                    el.style.display = original;
-                    if (!original) el.style.removeProperty('display');
+                if (CanvasAPI.getAttribute(el, 'data-hidden') === 'true') {
+                    CanvasAPI.setAttribute(el, 'data-hidden', 'false');
+                    const original = CanvasAPI.getAttribute(el, 'data-original-display') || '';
+                    CanvasAPI.setStyle(el, 'display', original);
+                    if (!original) CanvasAPI.removeAttribute(el, 'style');
                     eventBus.emit('element:updated', el);
                 }
             });
@@ -247,10 +247,10 @@ export class ContextMenu {
             let maxRight = -Infinity, maxBottom = -Infinity;
 
             elements.forEach(el => {
-                const left   = parseFloat(el.style.left)   || 0;
-                const top    = parseFloat(el.style.top)    || 0;
-                const width  = parseFloat(el.style.width)  || el.offsetWidth;
-                const height = parseFloat(el.style.height) || el.offsetHeight;
+                const left   = parseFloat(CanvasAPI.getStyle(el, 'left'))   || 0;
+                const top    = parseFloat(CanvasAPI.getStyle(el, 'top'))    || 0;
+                const width  = parseFloat(CanvasAPI.getStyle(el, 'width'))  || el.offsetWidth;
+                const height = parseFloat(CanvasAPI.getStyle(el, 'height')) || el.offsetHeight;
                 minLeft   = Math.min(minLeft, left);
                 minTop    = Math.min(minTop, top);
                 maxRight  = Math.max(maxRight, left + width);
@@ -260,28 +260,29 @@ export class ContextMenu {
             const parent = elements[0].parentNode;
 
             // Tạo container
-            const container = document.createElement('div');
-            container.setAttribute('data-editor-element', '');
-            container.id = generateElementId();
-            container.dataset.type = 'container';
-            container.dataset.name = 'Container';
-            container.dataset.container = 'true';
-            container.style.position = 'absolute';
-            container.style.left   = minLeft + 'px';
-            container.style.top    = minTop + 'px';
-            container.style.width  = (maxRight - minLeft) + 'px';
-            container.style.height = (maxBottom - minTop) + 'px';
+            const container = CanvasAPI.create('div', {
+                'data-editor-element': '',
+                id: generateElementId(),
+                'data-type': 'container',
+                'data-name': 'Container',
+                'data-container': 'true'
+            });
+            CanvasAPI.setStyle(container, 'position', 'absolute');
+            CanvasAPI.setStyle(container, 'left', minLeft + 'px');
+            CanvasAPI.setStyle(container, 'top', minTop + 'px');
+            CanvasAPI.setStyle(container, 'width', (maxRight - minLeft) + 'px');
+            CanvasAPI.setStyle(container, 'height', (maxBottom - minTop) + 'px');
 
             // Chèn container vào DOM tại vị trí của element đầu tiên
-            parent.insertBefore(container, elements[0]);
+            CanvasAPI.insertBefore(container, elements[0], parent);
 
             // Di chuyển các elements vào container (offset lại tọa độ)
             elements.forEach(el => {
-                const left = (parseFloat(el.style.left) || 0) - minLeft;
-                const top  = (parseFloat(el.style.top)  || 0) - minTop;
-                el.style.left = left + 'px';
-                el.style.top  = top  + 'px';
-                container.appendChild(el);
+                const left = (parseFloat(CanvasAPI.getStyle(el, 'left')) || 0) - minLeft;
+                const top  = (parseFloat(CanvasAPI.getStyle(el, 'top'))  || 0) - minTop;
+                CanvasAPI.setStyle(el, 'left', left + 'px');
+                CanvasAPI.setStyle(el, 'top', top + 'px');
+                CanvasAPI.append(el, container);
             });
 
             eventBus.emit('history:push', { type: 'add', element: container, parent });
@@ -298,7 +299,7 @@ export class ContextMenu {
         this.menu.classList.add('visible');
 
         // Đảm bảo menu không vượt viewport
-        const rect = this.menu.getBoundingClientRect();
+        const rect = CanvasAPI.getElementRect(this.menu);
         if (rect.right > window.innerWidth) {
             this.menu.style.left = (x - rect.width) + 'px';
         }

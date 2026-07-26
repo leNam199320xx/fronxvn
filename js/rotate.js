@@ -4,6 +4,7 @@
  * - Hiển thị góc xoay
  */
 import eventBus from './event-bus.js';
+import CanvasAPI from './canvas/canvas-api.js';
 import { ROTATE_SNAP_ANGLE } from './config.js';
 
 export class Rotate {
@@ -21,26 +22,22 @@ export class Rotate {
 
     /** Bind events */
     _bindEvents() {
-        const wrapper = this.editor.canvasWrapper;
-
-        wrapper.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.rotation-handle')) {
-                e.preventDefault();
-                e.stopPropagation();
-                this._startRotate(e);
+        eventBus.on('pointer:mousedown', (data) => {
+            if (data.button === 1) return;
+            if (CanvasAPI.closest(data.target, '.rotation-handle')) {
+                this._startRotate(data);
             }
         });
 
-        document.addEventListener('mousemove', (e) => {
+        eventBus.on('pointer:mousemove', (data) => {
             if (this.isRotating) {
-                e.preventDefault();
-                this._handleMouseMove(e);
+                this._handleMouseMove(data);
             }
         });
 
-        document.addEventListener('mouseup', (e) => {
+        eventBus.on('pointer:mouseup', (data) => {
             if (this.isRotating) {
-                this._handleMouseUp(e);
+                this._handleMouseUp(data);
             }
         });
     }
@@ -55,7 +52,7 @@ export class Rotate {
         this.rotateElement = el;
 
         // Lấy tâm element
-        const rect = el.getBoundingClientRect();
+        const rect = CanvasAPI.getElementRect(el);
         this.centerX = rect.left + rect.width / 2;
         this.centerY = rect.top + rect.height / 2;
 
@@ -66,7 +63,7 @@ export class Rotate {
             e.clientX - this.centerX
         ) * (180 / Math.PI);
 
-        this.beforeTransform = el.style.transform || '';
+        this.beforeTransform = CanvasAPI.getStyle(el, 'transform') || '';
 
         document.body.style.cursor = 'grabbing';
         eventBus.emit('rotate:start', el);
@@ -89,7 +86,7 @@ export class Rotate {
         }
 
         // Áp dụng rotation
-        this.rotateElement.style.transform = `rotate(${rotation}deg)`;
+        CanvasAPI.setStyle(this.rotateElement, 'transform', `rotate(${rotation}deg)`);
 
         // Emit transform để cập nhật overlay
         eventBus.emit('element:transform', this.rotateElement);
@@ -101,7 +98,7 @@ export class Rotate {
 
         document.body.style.cursor = '';
 
-        const afterTransform = this.rotateElement.style.transform;
+        const afterTransform = CanvasAPI.getStyle(this.rotateElement, 'transform');
 
         if (afterTransform !== this.beforeTransform) {
             eventBus.emit('history:push', {
@@ -121,7 +118,7 @@ export class Rotate {
 
     /** Lấy góc xoay hiện tại từ transform */
     _getRotation(el) {
-        const transform = el.style.transform || '';
+        const transform = CanvasAPI.getStyle(el, 'transform') || '';
         const match = transform.match(/rotate\(([-\d.]+)deg\)/);
         return match ? parseFloat(match[1]) : 0;
     }

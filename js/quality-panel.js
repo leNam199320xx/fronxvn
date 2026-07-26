@@ -5,6 +5,7 @@
  */
 import eventBus from './event-bus.js';
 import { QUALITY_SCORE_INITIAL, QUALITY_RESCAN_AFTER_FIX_DELAY, QUALITY_SCORE_GOOD, QUALITY_SCORE_WARN } from './config.js';
+import RenderPipeline from '../core/render-pipeline.js';
 
 const SEVERITY_ICON  = { error: '🔴', warning: '🟡', info: '🔵' };
 const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
@@ -15,12 +16,17 @@ export class QualityPanel {
         this.issues  = [];
         this.score   = QUALITY_SCORE_INITIAL;
 
-        this._container  = document.querySelector('[data-tab-content="quality"]');
+        this._container  = document.querySelector('#panel-right');
         this._scoreLabel = document.getElementById('quality-score-label');
         this._scoreBtn   = document.getElementById('btn-quality');
 
         this._render();
         this._bindEvents();
+        this._registerPipeline();
+    }
+
+    _registerPipeline() {
+        RenderPipeline.on('pipeline-quality', () => this._render());
     }
 
     // ─────────────────────────────────────────────
@@ -31,7 +37,7 @@ export class QualityPanel {
         eventBus.on('quality:updated', ({ issues, score }) => {
             this.issues = issues;
             this.score  = score;
-            this._render();
+            RenderPipeline.flushStage('pipeline-quality');
             this._updateScoreBadge();
         });
 
@@ -53,14 +59,24 @@ export class QualityPanel {
         if (!this._container) return;
         this._container.innerHTML = '';
 
-        // ── Header ───────────────────────────────────────────────────────────
+        const section = document.createElement('div');
+        section.className = 'panel-section';
+
         const header = document.createElement('div');
-        header.className = 'quality-panel-header';
+        header.className = 'panel-section-header';
+        header.innerHTML = 'Quality <span class="arrow">▼</span>';
+
+        const body = document.createElement('div');
+        body.className = 'panel-section-body';
+
+        // ── Header ───────────────────────────────────────────────────────────
+        const qualityHeader = document.createElement('div');
+        qualityHeader.className = 'quality-panel-header';
 
         const counts = { error: 0, warning: 0, info: 0 };
         this.issues.forEach(i => { if (counts[i.severity] !== undefined) counts[i.severity]++; });
 
-        header.innerHTML = `
+        qualityHeader.innerHTML = `
             <div class="quality-summary">
                 <span class="q-error">${SEVERITY_ICON.error} ${counts.error} error${counts.error !== 1 ? 's' : ''}</span>
                 <span class="q-warning">${SEVERITY_ICON.warning} ${counts.warning} warning${counts.warning !== 1 ? 's' : ''}</span>
@@ -68,34 +84,41 @@ export class QualityPanel {
             </div>
             <button class="quality-rescan-btn" title="Rescan now">⟳ Scan</button>
         `;
-        header.querySelector('.quality-rescan-btn').addEventListener('click', () => {
+        qualityHeader.querySelector('.quality-rescan-btn').addEventListener('click', () => {
             this.editor.qualityEngine?.scanNow();
         });
-        this._container.appendChild(header);
+        body.appendChild(qualityHeader);
 
         // ── Empty state ───────────────────────────────────────────────────────
         if (this.issues.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'quality-empty';
             empty.innerHTML = `<span>✅</span><p>No issues found</p>`;
-            this._container.appendChild(empty);
-            return;
+            body.appendChild(empty);
+        } else {
+            const sorted = [...this.issues].sort(
+                (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]
+            );
+
+            const list = document.createElement('div');
+            list.className = 'quality-issue-list';
+
+            sorted.forEach(issue => {
+                const item = this._buildIssueItem(issue);
+                list.appendChild(item);
+            });
+
+            body.appendChild(list);
         }
 
-        // ── Issues list (sorted by severity) ──────────────────────────────────
-        const sorted = [...this.issues].sort(
-            (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]
-        );
-
-        const list = document.createElement('div');
-        list.className = 'quality-issue-list';
-
-        sorted.forEach(issue => {
-            const item = this._buildIssueItem(issue);
-            list.appendChild(item);
+        header.addEventListener('click', () => {
+            header.classList.toggle('collapsed');
+            body.classList.toggle('collapsed');
         });
 
-        this._container.appendChild(list);
+        section.appendChild(header);
+        section.appendChild(body);
+        this._container.appendChild(section);
     }
 
     /**

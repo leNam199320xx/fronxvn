@@ -4,6 +4,9 @@
  * Hỗ trợ multi-selection: hiển thị bounding box chung.
  */
 import eventBus from './event-bus.js';
+import RenderPipeline from '../core/render-pipeline.js';
+import CanvasAPI from './canvas/canvas-api.js';
+import ViewportCulling from '../core/viewport-culling.js';
 import { OVERLAY_HIDE_LABEL_DELAY, OVERLAY_BADGE_OFFSET } from './config.js';
 
 /** Map severity → emoji badge */
@@ -25,6 +28,7 @@ export class Overlay {
 
         this._createOverlayElements();
         this._bindEvents();
+        this._registerPipeline();
     }
 
     /** Tạo các DOM element cho overlay */
@@ -95,23 +99,32 @@ export class Overlay {
         this.layer.appendChild(this.rubberBand);
     }
 
+    /** Register overlay render stages with RenderPipeline */
+    _registerPipeline() {
+        RenderPipeline.on('pipeline-selection', () => this._updateOverlay());
+        RenderPipeline.on('pipeline-overlay',   () => this._updateOverlay());
+        RenderPipeline.on('pipeline-quality',   () => this._refreshBadges());
+    }
+
     /** Bind events */
     _bindEvents() {
-        // Selection thay đổi
         eventBus.on('selection:changed', (elements) => {
             this.selectedElements = elements || [];
             if (this.selectedElements.length === 0) {
                 this._hideOverlay();
             } else {
-                this._showOverlay();
+                DirtyState.mark(DIRTY.SELECTION);
+                DirtyState.mark(DIRTY.OVERLAY);
+                RenderPipeline.flushStage('pipeline-selection');
             }
         });
 
-        // Backward compat
         eventBus.on('element:selected', (el) => {
             if (!this.selectedElements.includes(el)) {
                 this.selectedElements = [el];
-                this._showOverlay();
+                DirtyState.mark(DIRTY.SELECTION);
+                DirtyState.mark(DIRTY.OVERLAY);
+                RenderPipeline.flushStage('pipeline-selection');
             }
         });
 
@@ -120,30 +133,57 @@ export class Overlay {
             this._hideOverlay();
         });
 
-        // Hover
         eventBus.on('element:hovered', (el) => {
-            this._showHover(el);
+            if (ViewportCulling.isVisible(el)) {
+                this._showHover(el);
+            } else {
+                this.hoverBox.style.display = 'none';
+            }
         });
 
-        // Element cập nhật
         eventBus.on('element:updated', (el) => {
             if (this.selectedElements.includes(el)) {
-                this._updateOverlay();
+                DirtyState.mark(DIRTY.OVERLAY);
+                RenderPipeline.flushStage('pipeline-overlay');
             }
         });
 
         eventBus.on('element:transform', (el) => {
             if (this.selectedElements.includes(el)) {
-                this._updateOverlay();
+                DirtyState.mark(DIRTY.OVERLAY);
+                RenderPipeline.flushStage('pipeline-overlay');
             }
         });
 
-        // Scroll / Zoom / Resize -> cập nhật overlay
-        eventBus.on('canvas:scroll', () => { this._refreshOverlay(); this._refreshBadges(); });
-        eventBus.on('canvas:zoom',   () => { this._refreshOverlay(); this._refreshBadges(); });
-        eventBus.on('canvas:resize', () => { this._refreshOverlay(); this._refreshBadges(); });
+        eventBus.on('canvas:scroll', () => {
+            ViewportCulling.invalidate();
+            DirtyState.mark(DIRTY.OVERLAY);
+            DirtyState.mark(DIRTY.QUALITY);
+            RenderPipeline.flushStage('pipeline-overlay');
+            RenderPipeline.flushStage('pipeline-quality');
+        });
+        eventBus.on('canvas:zoom',   () => {
+            ViewportCulling.invalidate();
+            DirtyState.mark(DIRTY.OVERLAY);
+            DirtyState.mark(DIRTY.QUALITY);
+            RenderPipeline.flushStage('pipeline-overlay');
+            RenderPipeline.flushStage('pipeline-quality');
+        });
+        eventBus.on('canvas:resize', () => {
+            ViewportCulling.invalidate();
+            DirtyState.mark(DIRTY.OVERLAY);
+            DirtyState.mark(DIRTY.QUALITY);
+            RenderPipeline.flushStage('pipeline-overlay');
+            RenderPipeline.flushStage('pipeline-quality');
+        });
+        eventBus.on('breakpoint:switch', () => {
+            ViewportCulling.invalidate();
+            DirtyState.mark(DIRTY.OVERLAY);
+            DirtyState.mark(DIRTY.QUALITY);
+            RenderPipeline.flushStage('pipeline-overlay');
+            RenderPipeline.flushStage('pipeline-quality');
+        });
 
-        // Page switch — xóa toàn bộ overlay và guides
         eventBus.on('overlay:clear', () => {
             this.selectedElements = [];
             this._hideOverlay();
@@ -151,16 +191,13 @@ export class Overlay {
             this.hoverBox.style.display = 'none';
         });
 
-        // Rubber-band events từ drag.js
         eventBus.on('rubber-band:update', (rect) => this._updateRubberBand(rect));
         eventBus.on('rubber-band:end', () => this._hideRubberBand());
 
-        // ── Quality badges ─────────────────────────────────────────────────────
-        eventBus.on('quality:updated', ({ issues }) => {
-            this._updateQualityBadges(issues);
+        eventBus.on('quality:updated', () => {
+            RenderPipeline.flushStage('pipeline-quality');
         });
 
-        // ── Realtime indicators khi drag ──────────────────────────────────────
         eventBus.on('drag:start', () => {
             this._isMoving = true;
             this._showRealtimeLabels();
@@ -171,7 +208,6 @@ export class Overlay {
             this._scheduleHideLabels();
         });
 
-        // ── Realtime indicators khi resize ────────────────────────────────────
         eventBus.on('resize:start', () => {
             this._isResizing = true;
             this._showRealtimeLabels();
@@ -182,7 +218,6 @@ export class Overlay {
             this._scheduleHideLabels();
         });
 
-        // ── Realtime indicators khi rotate ────────────────────────────────────
         eventBus.on('rotate:start', () => {
             this._isRotating = true;
             this._showRealtimeLabels();
@@ -200,7 +235,6 @@ export class Overlay {
         const isSingle = this.selectedElements.length === 1;
         this._setHandlesVisible(isSingle);
         this.multiBadge.style.display = isSingle ? 'none' : 'block';
-        this._updateOverlay();
     }
 
     /** Ẩn overlay */
@@ -244,9 +278,21 @@ export class Overlay {
         if (this.selectedElements.length === 0) return;
 
         if (this.selectedElements.length === 1) {
-            this._updateSingleOverlay(this.selectedElements[0]);
+            const el = this.selectedElements[0];
+            if (!ViewportCulling.isVisible(el)) {
+                this.selectionBox.style.display = 'none';
+                return;
+            }
+            this.selectionBox.style.display = 'block';
+            this._updateSingleOverlay(el);
         } else {
-            this._updateMultiOverlay();
+            const visible = ViewportCulling.visibleElements(this.selectedElements);
+            if (visible.length === 0) {
+                this.selectionBox.style.display = 'none';
+                return;
+            }
+            this.selectionBox.style.display = 'block';
+            this._updateMultiOverlay(visible);
         }
     }
 
@@ -275,6 +321,29 @@ export class Overlay {
         }
     }
 
+    /** Overlay bounding box cho nhiều element */
+    _updateMultiOverlay(visibleElements) {
+        let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
+        const layerRect = CanvasAPI.getElementRect(this.layer);
+
+        visibleElements.forEach(el => {
+            const elRect = CanvasAPI.getElementRect(el);
+            const left = elRect.left - layerRect.left;
+            const top = elRect.top - layerRect.top;
+            minLeft = Math.min(minLeft, left);
+            minTop = Math.min(minTop, top);
+            maxRight = Math.max(maxRight, left + elRect.width);
+            maxBottom = Math.max(maxBottom, top + elRect.height);
+        });
+
+        this.selectionBox.style.left = minLeft + 'px';
+        this.selectionBox.style.top = minTop + 'px';
+        this.selectionBox.style.width = (maxRight - minLeft) + 'px';
+        this.selectionBox.style.height = (maxBottom - minTop) + 'px';
+
+        this.multiBadge.textContent = `${this.selectedElements.length} selected`;
+    }
+
     /**
      * Bắt label hiện ngay khi bắt đầu thao tác.
      */
@@ -296,29 +365,6 @@ export class Overlay {
                 this.positionLabel.style.display = 'none';
             }
         }, OVERLAY_HIDE_LABEL_DELAY);
-    }
-
-    /** Overlay bounding box cho nhiều element */
-    _updateMultiOverlay() {
-        let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
-        const layerRect = this.layer.getBoundingClientRect();
-
-        this.selectedElements.forEach(el => {
-            const elRect = el.getBoundingClientRect();
-            const left = elRect.left - layerRect.left;
-            const top = elRect.top - layerRect.top;
-            minLeft = Math.min(minLeft, left);
-            minTop = Math.min(minTop, top);
-            maxRight = Math.max(maxRight, left + elRect.width);
-            maxBottom = Math.max(maxBottom, top + elRect.height);
-        });
-
-        this.selectionBox.style.left = minLeft + 'px';
-        this.selectionBox.style.top = minTop + 'px';
-        this.selectionBox.style.width = (maxRight - minLeft) + 'px';
-        this.selectionBox.style.height = (maxBottom - minTop) + 'px';
-
-        this.multiBadge.textContent = `${this.selectedElements.length} selected`;
     }
 
     /** Refresh overlay (khi scroll/zoom/resize) */
@@ -347,8 +393,8 @@ export class Overlay {
      * Lấy vị trí element trên screen (relative to overlay layer)
      */
     _getElementScreenRect(el) {
-        const elRect = el.getBoundingClientRect();
-        const layerRect = this.layer.getBoundingClientRect();
+        const elRect = CanvasAPI.getElementRect(el);
+        const layerRect = CanvasAPI.getElementRect(this.layer);
         return {
             left: elRect.left - layerRect.left,
             top: elRect.top - layerRect.top,
@@ -364,7 +410,7 @@ export class Overlay {
     /**
      * Cập nhật toàn bộ badge dựa trên issues mới nhất.
       * @param {import('./quality/index.js').Issue[]} issues
-     */
+      */
     _updateQualityBadges(issues) {
         // Xóa tất cả badge cũ
         this._badges.forEach(badge => badge.remove());
@@ -380,14 +426,14 @@ export class Overlay {
             }
         });
 
-        // Tạo badge cho từng element có issue
+        // Tạo badge cho từng element có issue (chỉ visible)
         elMap.forEach((severity, el) => {
+            if (!ViewportCulling.isVisible(el)) return;
             const badge = document.createElement('div');
             badge.className = `quality-badge quality-badge-${severity}`;
             badge.textContent = SEVERITY_BADGE[severity];
             badge.title = `Quality issue: ${severity}`;
 
-            // Vị trí: góc trên-phải của element (relative to overlay layer)
             this._positionBadge(badge, el);
 
             badge.addEventListener('click', (e) => {
@@ -415,7 +461,12 @@ export class Overlay {
     /** Cập nhật vị trí tất cả badge (khi scroll/zoom) */
     _refreshBadges() {
         this._badges.forEach((badge, el) => {
-            this._positionBadge(badge, el);
+            if (ViewportCulling.isVisible(el)) {
+                this._positionBadge(badge, el);
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
         });
     }
 

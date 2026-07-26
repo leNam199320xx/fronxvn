@@ -4,11 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HTML Visual Editor</title>
-    <link rel="stylesheet" href="css/editor.css">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/scrollbar.css">
+    <link rel="stylesheet" href="css/panels.css">
+    <link rel="stylesheet" href="css/canvas.css">
+    <link rel="stylesheet" href="css/overlay.css">
+    <link rel="stylesheet" href="css/layers.css">
+    <link rel="stylesheet" href="css/context-menu.css">
+    <link rel="stylesheet" href="css/page-tabs.css">
+    <link rel="stylesheet" href="css/viewport.css">
+    <link rel="stylesheet" href="css/quality.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/templates.css">
+    <link rel="stylesheet" href="css/theme.css">
+    <link rel="stylesheet" href="css/css-editor.css">
+    <link rel="stylesheet" href="css/notifications.css">
 </head>
 <body>
     <div class="editor-layout">
-        <!-- Toolbar -->
+        <!-- Top Toolbar -->
         <div class="editor-toolbar">
             <div class="toolbar-group">
                 <button id="btn-undo" title="Undo (Ctrl+Z)">↶</button>
@@ -20,6 +35,10 @@
                 <span class="zoom-display" id="zoom-display">100%</span>
                 <button id="btn-zoom-in" title="Zoom In">+</button>
                 <button id="btn-zoom-reset" title="Reset Zoom">⟲</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <span id="project-name" class="project-name" title="Click to rename project">My Project</span>
             </div>
             <div class="toolbar-separator"></div>
             <div class="toolbar-group">
@@ -43,16 +62,19 @@
                 <button id="btn-load" title="Load">Load</button>
             </div>
             <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <button id="btn-new-project" title="New Project">📄 New</button>
+            </div>
+            <div class="toolbar-separator"></div>
             <div class="toolbar-group" id="viewport-switcher">
-                <button id="btn-bp-desktop" class="active" title="Desktop (full width)" data-bp="desktop">🖥</button>
-                <button id="btn-bp-tablet" title="Tablet (768px)" data-bp="tablet">📱</button>
-                <button id="btn-bp-mobile" title="Mobile (375px)" data-bp="mobile">📲</button>
-                <span class="viewport-label" id="viewport-label">Desktop</span>
+                <button id="btn-bp-desktop" class="active" title="Desktop" data-bp="desktop">🖥</button>
+                <button id="btn-bp-tablet" title="Tablet" data-bp="tablet">📱</button>
+                <button id="btn-bp-mobile" title="Mobile" data-bp="mobile">📲</button>
             </div>
             <div class="toolbar-separator"></div>
             <div class="toolbar-group">
-                <button id="btn-toggle-left" title="Toggle Left Panel">◀</button>
-                <button id="btn-toggle-right" title="Toggle Right Panel">▶</button>
+                <button id="btn-toggle-left" title="Toggle Left Toolbar" class="active">◀</button>
+                <button id="btn-toggle-right" title="Toggle Right Toolbar" class="active">▶</button>
             </div>
             <div class="toolbar-separator"></div>
             <div class="toolbar-group">
@@ -72,58 +94,40 @@
 
         <!-- Main area -->
         <div class="editor-main">
-            <!-- Left Panel: Properties -->
-            <div class="panel-left" id="panel-left">
+            <!-- Left Toolbar: Properties (vertical icon bar) -->
+            <div class="toolbar-left" id="toolbar-left">
+                <button class="toolbar-icon active" data-panel="properties" title="Properties">⚙</button>
+                <button class="toolbar-icon" data-panel="layers" title="Layers">☰</button>
+                <button class="toolbar-icon" data-panel="components" title="Components">⬡</button>
+            </div>
+
+            <!-- Left Floating Panel -->
+            <div class="panel-float panel-float-left" id="panel-left">
                 <div class="panel-section">
-                    <div class="panel-section-header">
-                        Properties
-                        <span class="arrow">▼</span>
-                    </div>
+                    <div class="panel-section-header">Properties <span class="arrow">▼</span></div>
+                    <div class="panel-section-body"></div>
                 </div>
-                <!-- Property panel content sẽ được render bởi JS -->
             </div>
 
             <!-- Canvas -->
             <div class="canvas-wrapper" id="canvas-wrapper">
                 <div class="canvas-container" id="canvas-container">
                     <div class="canvas-inner" id="canvas-inner">
-                        <div class="canvas show-grid" id="canvas">
-                            <!-- Elements sẽ được thêm vào đây -->
-                        </div>
+                        <div class="canvas show-grid" id="canvas"></div>
                     </div>
                 </div>
-                <!-- Overlay layer -->
                 <div class="overlay-layer" id="overlay-layer"></div>
             </div>
 
-            <!-- Right Panel: Elements + Layers -->
-            <div class="panel-right" id="panel-right">
-                <div class="panel-tabs">
-                    <div class="panel-tab active" data-tab="elements">Elements</div>
-                    <div class="panel-tab" data-tab="templates">Templates</div>
-                    <div class="panel-tab" data-tab="layers">Layers</div>
-                    <div class="panel-tab" data-tab="theme">Theme</div>
-                    <div class="panel-tab" data-tab="quality">Quality</div>
-                    <div class="panel-tab" data-tab="components">Components</div>
-                </div>
-                <div class="panel-tab-content active" data-tab-content="elements">
-                    <!-- Element library content sẽ được render bởi JS -->
-                </div>
-                <div class="panel-tab-content" data-tab-content="templates">
-                    <!-- Template library sẽ được render bởi JS -->
-                </div>
-                <div class="panel-tab-content" data-tab-content="layers">
-                    <!-- Layer panel content sẽ được render bởi JS -->
-                </div>
-                <div class="panel-tab-content" data-tab-content="theme">
-                    <!-- Theme manager sẽ được render bởi JS -->
-                </div>
-                <div class="panel-tab-content" data-tab-content="quality">
-                    <!-- Quality panel sẽ được render bởi JS -->
-                </div>
-                <div class="panel-tab-content" data-tab-content="components">
-                    <!-- Component panel sẽ được render bởi JS -->
-                </div>
+            <!-- Right Floating Panel -->
+            <div class="panel-float panel-float-right" id="panel-right"></div>
+
+            <!-- Right Toolbar: vertical icon bar -->
+            <div class="toolbar-right" id="toolbar-right">
+                <button class="toolbar-icon active" data-panel="elements" title="Elements">□</button>
+                <button class="toolbar-icon" data-panel="templates" title="Templates">📋</button>
+                <button class="toolbar-icon" data-panel="theme" title="Theme">🎨</button>
+                <button class="toolbar-icon" data-panel="quality" title="Quality">✓</button>
             </div>
         </div>
     </div>
@@ -131,7 +135,6 @@
     <!-- Context Menu -->
     <div class="context-menu" id="context-menu"></div>
 
-    <!-- Main entry point -->
     <script type="module" src="js/editor.js"></script>
 </body>
 </html>

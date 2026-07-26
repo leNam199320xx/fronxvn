@@ -5,6 +5,7 @@
  * - Hỗ trợ undo/redo qua history
  */
 import eventBus from './event-bus.js';
+import CanvasAPI from './canvas/canvas-api.js';
 import { generateElementId } from './core/ids.js';
 
 export class GroupManager {
@@ -37,10 +38,10 @@ export class GroupManager {
         let groupBottom = -Infinity;
 
         elements.forEach(el => {
-            const left   = parseFloat(el.style.left)   || 0;
-            const top    = parseFloat(el.style.top)    || 0;
-            const width  = parseFloat(el.style.width)  || el.offsetWidth;
-            const height = parseFloat(el.style.height) || el.offsetHeight;
+            const left   = parseFloat(CanvasAPI.getStyle(el, 'left'))   || 0;
+            const top    = parseFloat(CanvasAPI.getStyle(el, 'top'))    || 0;
+            const width  = parseFloat(CanvasAPI.getStyle(el, 'width'))  || el.offsetWidth;
+            const height = parseFloat(CanvasAPI.getStyle(el, 'height')) || el.offsetHeight;
 
             groupLeft   = Math.min(groupLeft,  left);
             groupTop    = Math.min(groupTop,   top);
@@ -54,32 +55,33 @@ export class GroupManager {
         // Lưu vị trí ban đầu của các elements trước khi di chuyển
         const positions = elements.map(el => ({
             el,
-            left: parseFloat(el.style.left) || 0,
-            top:  parseFloat(el.style.top)  || 0
+            left: parseFloat(CanvasAPI.getStyle(el, 'left')) || 0,
+            top:  parseFloat(CanvasAPI.getStyle(el, 'top'))  || 0
         }));
 
         // Tạo GroupElement
-        const groupEl = document.createElement('div');
-        groupEl.setAttribute('data-editor-element', '');
-        groupEl.dataset.type      = 'group';
-        groupEl.dataset.container = 'true';
-        groupEl.dataset.name      = 'Group';
+        const groupEl = CanvasAPI.createElement('div', {
+            'data-editor-element': '',
+            'data-type': 'group',
+            'data-container': 'true',
+            'data-name': 'Group'
+        });
         groupEl.id = generateElementId();
-        groupEl.style.position = 'absolute';
-        groupEl.style.left     = groupLeft   + 'px';
-        groupEl.style.top      = groupTop    + 'px';
-        groupEl.style.width    = groupWidth  + 'px';
-        groupEl.style.height   = groupHeight + 'px';
+        CanvasAPI.setStyle(groupEl, 'position', 'absolute');
+        CanvasAPI.setStyle(groupEl, 'left', groupLeft + 'px');
+        CanvasAPI.setStyle(groupEl, 'top', groupTop + 'px');
+        CanvasAPI.setStyle(groupEl, 'width', groupWidth + 'px');
+        CanvasAPI.setStyle(groupEl, 'height', groupHeight + 'px');
 
         // Chèn GroupElement vào DOM trước element đầu tiên
-        parent.insertBefore(groupEl, elements[0]);
+        CanvasAPI.insertBefore(groupEl, elements[0], parent);
 
         // Di chuyển elements vào GroupElement với tọa độ tương đối
         elements.forEach(el => {
             const pos = positions.find(p => p.el === el);
-            el.style.left = (pos.left - groupLeft) + 'px';
-            el.style.top  = (pos.top  - groupTop)  + 'px';
-            groupEl.appendChild(el);
+            CanvasAPI.setStyle(el, 'left', (pos.left - groupLeft) + 'px');
+            CanvasAPI.setStyle(el, 'top', (pos.top - groupTop) + 'px');
+            CanvasAPI.append(el, groupEl);
         });
 
         // Ghi vào breakpoint store
@@ -113,36 +115,36 @@ export class GroupManager {
      */
     ungroup() {
         const el = this.editor.selection.getSelected();
-        if (!el || el.dataset.type !== 'group') return;
+        if (!el || CanvasAPI.getAttribute(el, 'data-type') !== 'group') return;
 
         const parent    = el.parentNode;
-        const groupLeft = parseFloat(el.style.left) || 0;
-        const groupTop  = parseFloat(el.style.top)  || 0;
+        const groupLeft = parseFloat(CanvasAPI.getStyle(el, 'left')) || 0;
+        const groupTop  = parseFloat(CanvasAPI.getStyle(el, 'top'))  || 0;
 
         const children = Array.from(el.querySelectorAll(':scope > [data-editor-element]'));
 
         // Lưu tọa độ tương đối trong group trước khi di chuyển
         const positions = children.map(child => ({
             el:      child,
-            relLeft: parseFloat(child.style.left) || 0,
-            relTop:  parseFloat(child.style.top)  || 0
+            relLeft: parseFloat(CanvasAPI.getStyle(child, 'left')) || 0,
+            relTop:  parseFloat(CanvasAPI.getStyle(child, 'top'))  || 0
         }));
 
         // Di chuyển children ra parent với tọa độ tuyệt đối
         children.forEach(child => {
             const pos = positions.find(p => p.el === child);
-            child.style.left = (pos.relLeft + groupLeft) + 'px';
-            child.style.top  = (pos.relTop  + groupTop)  + 'px';
-            parent.insertBefore(child, el);
+            CanvasAPI.setStyle(child, 'left', (pos.relLeft + groupLeft) + 'px');
+            CanvasAPI.setStyle(child, 'top', (pos.relTop + groupTop) + 'px');
+            CanvasAPI.insertBefore(child, el, parent);
 
             // Sync vào breakpoint store
             const bpMgr = this.editor.breakpointManager;
-            bpMgr.setStyle(child, 'left', child.style.left);
-            bpMgr.setStyle(child, 'top',  child.style.top);
+            bpMgr.setStyle(child, 'left', CanvasAPI.getStyle(child, 'left'));
+            bpMgr.setStyle(child, 'top', CanvasAPI.getStyle(child, 'top'));
         });
 
         // Xóa GroupElement
-        el.remove();
+        CanvasAPI.remove(el);
 
         // Push history
         eventBus.emit('history:push', {

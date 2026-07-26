@@ -5,8 +5,10 @@ import { savePageData } from './page-storage.js';
 import { saveHistoryToPage } from './page-history.js';
 import { switchPage } from './page-switch.js';
 import { renderTabBar } from './page-tabs.js';
+import debug from '../debug.js';
 
 export function addPage(pages, activePageId, editor, eventBus, opts = {}) {
+    debug.action('page-crud', 'addPage', { totalPages: pages.length + 1 });
     const page = {
         id: generatePageId(),
         name: `Page ${pages.length + 1}`,
@@ -47,6 +49,7 @@ export function addPage(pages, activePageId, editor, eventBus, opts = {}) {
 }
 
 export function deletePage(pages, activePageId, editor, eventBus, pageId, opts = {}) {
+    debug.action('page-crud', 'deletePage', { pageId, totalPages: pages.length });
     if (pages.length <= 1) return;
 
     const idx = pages.findIndex(p => p.id === pageId);
@@ -79,6 +82,7 @@ export function deletePage(pages, activePageId, editor, eventBus, pageId, opts =
 }
 
 export function duplicatePage(pages, activePageId, editor, eventBus, pageId) {
+    debug.action('page-crud', 'duplicatePage', { pageId });
     const srcIdx = pages.findIndex(p => p.id === pageId);
     if (srcIdx === -1) return;
 
@@ -104,6 +108,7 @@ export function duplicatePage(pages, activePageId, editor, eventBus, pageId) {
 }
 
 export function renamePage(pages, activePageId, editor, eventBus, pageId, newName, opts = {}) {
+    debug.action('page-crud', 'renamePage', { pageId, newName });
     const trimmed = (newName || '').trim();
     if (!trimmed) return;
 

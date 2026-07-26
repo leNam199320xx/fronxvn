@@ -8,7 +8,12 @@
  * - Rubber-band selection (kéo vùng chọn) — được trigger bởi drag.js
  */
 import eventBus from './event-bus.js';
+import CanvasAPI from './canvas/canvas-api.js';
 import { SELECTION_EDIT_OUTLINE } from './config.js';
+import DirtyState, { DIRTY } from '../core/dirty-state.js';
+import RenderPipeline from '../core/render-pipeline.js';
+
+import debug from './debug.js';
 
 export class Selection {
     constructor(editor) {
@@ -22,29 +27,24 @@ export class Selection {
 
     /** Bind các sự kiện */
     _bindEvents() {
-        const wrapper = this.editor.canvasWrapper;
-
-        // Mousedown trên canvas
-        wrapper.addEventListener('mousedown', (e) => {
+        eventBus.on('pointer:mousedown', (data) => {
             if (this.isEditing) return;
-            // Bỏ qua nếu click vào overlay handle
-            if (e.target.closest('.resize-handle') ||
-                e.target.closest('.move-handle') ||
-                e.target.closest('.rotation-handle')) {
+            const target = data.target;
+            if (CanvasAPI.closest(target, '.resize-handle') ||
+                CanvasAPI.closest(target, '.move-handle') ||
+                CanvasAPI.closest(target, '.rotation-handle')) {
                 return;
             }
-            this._handleMouseDown(e);
+            this._handleMouseDown(data);
         });
 
-        // Hover
-        wrapper.addEventListener('mousemove', (e) => {
+        eventBus.on('pointer:mousemove', (data) => {
             if (this.isEditing) return;
-            this._handleHover(e);
+            this._handleHover(data);
         });
 
-        // Double click để edit text
-        wrapper.addEventListener('dblclick', (e) => {
-            this._handleDoubleClick(e);
+        eventBus.on('pointer:dblclick', (data) => {
+            this._handleDoubleClick(data);
         });
 
         // Lắng nghe sự kiện xóa element
@@ -71,14 +71,11 @@ export class Selection {
 
         if (el) {
             if (e.shiftKey) {
-                // Shift+Click: toggle element trong/ngoài selection
                 this.toggleSelection(el);
             } else {
-                // Click thường: chọn 1 element (bỏ selection cũ)
                 this.select(el);
             }
         } else {
-            // Click vùng trống -> bỏ chọn (rubber-band được xử lý bởi drag.js)
             if (!e.shiftKey) {
                 this.deselectAll();
             }
@@ -99,7 +96,6 @@ export class Selection {
         const el = this._getElementFromEvent(e);
         if (!el) return;
 
-        // Double-click image → mở file picker
         const tag = el.tagName.toLowerCase();
         const type = el.dataset.type || '';
         if (tag === 'img' || type === 'image') {
@@ -130,24 +126,20 @@ export class Selection {
             const reader = new FileReader();
             reader.onload = (ev) => {
                 const dataUrl = ev.target.result;
-                const before = el.tagName.toLowerCase() === 'img'
-                    ? el.getAttribute('src')
-                    : el.style.backgroundImage;
+                const before = CanvasAPI.getAttribute(el, 'src') || CanvasAPI.getStyle(el, 'background-image');
 
-                if (el.tagName.toLowerCase() === 'img') {
-                    el.setAttribute('src', dataUrl);
+                if (CanvasAPI.getAttribute(el, 'src')) {
+                    CanvasAPI.setAttribute(el, 'src', dataUrl);
                 } else {
-                    el.style.backgroundImage = `url("${dataUrl}")`;
+                    CanvasAPI.setStyle(el, 'background-image', `url("${dataUrl}")`);
                 }
 
-                const after = el.tagName.toLowerCase() === 'img'
-                    ? el.getAttribute('src')
-                    : el.style.backgroundImage;
+                const after = CanvasAPI.getAttribute(el, 'src') || CanvasAPI.getStyle(el, 'background-image');
 
                 eventBus.emit('history:push', {
                     type: 'style',
                     element: el,
-                    prop: el.tagName.toLowerCase() === 'img' ? 'src' : 'background-image',
+                    prop: CanvasAPI.getAttribute(el, 'src') ? 'src' : 'background-image',
                     before,
                     after
                 });
@@ -162,15 +154,15 @@ export class Selection {
     /** Bắt đầu chỉnh sửa text */
     _startEditing(el) {
         this.isEditing = true;
-        this._textBefore = el.innerHTML;
-        el.contentEditable = 'true';
+        this._textBefore = CanvasAPI.getHTML(el);
+        CanvasAPI.setAttribute(el, 'contenteditable', 'true');
         el.focus();
-        el.style.cursor = 'text';
-        el.style.outline = SELECTION_EDIT_OUTLINE;
+        CanvasAPI.setStyle(el, 'cursor', 'text');
+        CanvasAPI.setStyle(el, 'outline', SELECTION_EDIT_OUTLINE);
 
-        const range = document.createRange();
+        const range = CanvasAPI.getDocument().createRange();
         range.selectNodeContents(el);
-        const sel = window.getSelection();
+        const sel = CanvasAPI.getSelection();
         sel.removeAllRanges();
         sel.addRange(range);
 
@@ -194,18 +186,17 @@ export class Selection {
     /** Kết thúc chỉnh sửa text */
     _stopEditing(el) {
         this.isEditing = false;
-        el.contentEditable = 'false';
-        el.style.cursor = '';
-        el.style.outline = '';
-        window.getSelection().removeAllRanges();
+        CanvasAPI.setAttribute(el, 'contenteditable', 'false');
+        CanvasAPI.setStyle(el, 'cursor', '');
+        CanvasAPI.setStyle(el, 'outline', '');
+        CanvasAPI.getSelection().removeAllRanges();
         
-        // So sánh và emit history nếu có thay đổi
-        if (this._textBefore !== undefined && el.innerHTML !== this._textBefore) {
+        if (this._textBefore !== undefined && CanvasAPI.getHTML(el) !== this._textBefore) {
             eventBus.emit('history:push', {
                 type: 'text-edit',
                 element: el,
                 before: this._textBefore,
-                after: el.innerHTML
+                after: CanvasAPI.getHTML(el)
             });
         }
         this._textBefore = undefined;
@@ -220,7 +211,9 @@ export class Selection {
      */
     select(el) {
         if (this.selectedElements.length === 1 && this.selectedElements[0] === el) return;
+        debug.action('selection', 'select', { id: el.id, type: el.dataset.type });
         this.selectedElements = [el];
+        DirtyState.mark(DIRTY.SELECTION);
         eventBus.emit('element:selected', el);
         eventBus.emit('selection:changed', this.selectedElements);
     }
@@ -231,11 +224,14 @@ export class Selection {
      */
     toggleSelection(el) {
         const idx = this.selectedElements.indexOf(el);
+        debug.action('selection', 'toggleSelection', { id: el.id, type: el.dataset.type, adding: idx === -1 });
         if (idx === -1) {
             this.selectedElements.push(el);
         } else {
             this.selectedElements.splice(idx, 1);
         }
+
+        DirtyState.mark(DIRTY.SELECTION);
 
         if (this.selectedElements.length === 1) {
             eventBus.emit('element:selected', this.selectedElements[0]);
@@ -253,7 +249,9 @@ export class Selection {
      */
     addToSelection(el) {
         if (!this.selectedElements.includes(el)) {
+            debug.action('selection', 'addToSelection', { id: el.id, type: el.dataset.type });
             this.selectedElements.push(el);
+            DirtyState.mark(DIRTY.SELECTION);
         }
     }
 
@@ -262,7 +260,9 @@ export class Selection {
      * @param {HTMLElement} el
      */
     removeFromSelection(el) {
+        debug.action('selection', 'removeFromSelection', { id: el.id, type: el.dataset.type });
         this.selectedElements = this.selectedElements.filter(e => e !== el);
+        DirtyState.mark(DIRTY.SELECTION);
         if (this.selectedElements.length === 0) {
             eventBus.emit('element:deselected');
         }
@@ -274,7 +274,9 @@ export class Selection {
      * @param {HTMLElement[]} elements
      */
     setSelection(elements) {
+        debug.action('selection', 'setSelection', { count: elements.length });
         this.selectedElements = [...elements];
+        DirtyState.mark(DIRTY.SELECTION);
         if (this.selectedElements.length === 0) {
             eventBus.emit('element:deselected');
         } else {
@@ -286,7 +288,9 @@ export class Selection {
     /** Bỏ chọn tất cả */
     deselectAll() {
         if (this.selectedElements.length === 0) return;
+        debug.action('selection', 'deselectAll', { count: this.selectedElements.length });
         this.selectedElements = [];
+        DirtyState.mark(DIRTY.SELECTION);
         eventBus.emit('element:deselected');
         eventBus.emit('selection:changed', []);
     }
@@ -300,8 +304,9 @@ export class Selection {
 
     /** Lấy element từ event */
     _getElementFromEvent(e) {
-        const el = e.target.closest('[data-editor-element]');
-        if (el && this.editor.canvas.contains(el)) {
+        const target = e.target;
+        const el = CanvasAPI.closest(target, '[data-editor-element]');
+        if (el && CanvasAPI.contains(this.editor.canvas, el)) {
             return el;
         }
         return null;

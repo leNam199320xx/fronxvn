@@ -1,5 +1,6 @@
 import { createSection, toHex } from './utils.js';
 import eventBus from '../event-bus.js';
+import CanvasAPI from '../canvas/canvas-api.js';
 import { DEFAULT_COLOR_FALLBACK } from '../config.js';
 
 const LAYOUT_FIELDS = [
@@ -45,7 +46,7 @@ export function createLayoutTab({ editor, eventBus }) {
             }
         }
 
-        selectedElement.style[prop] = value;
+        CanvasAPI.setStyle(selectedElement, prop, value);
 
         if (bpManager) {
             bpManager.setStyle(selectedElement, prop, value);
@@ -76,13 +77,13 @@ export function createLayoutTab({ editor, eventBus }) {
 
         children.forEach(child => {
             if (isFlowLayout) {
-                child.style.position = 'relative';
-                child.style.left = '';
-                child.style.top = '';
+                CanvasAPI.setStyle(child, 'position', 'relative');
+                CanvasAPI.setStyle(child, 'left', '');
+                CanvasAPI.setStyle(child, 'top', '');
             } else {
-                child.style.position = 'absolute';
-                if (!child.style.left) child.style.left = '0px';
-                if (!child.style.top) child.style.top = '0px';
+                CanvasAPI.setStyle(child, 'position', 'absolute');
+                if (!child.style.left) CanvasAPI.setStyle(child, 'left', '0px');
+                if (!child.style.top) CanvasAPI.setStyle(child, 'top', '0px');
             }
         });
 
@@ -95,8 +96,8 @@ export function createLayoutTab({ editor, eventBus }) {
             if (parent && parent !== editor.canvas) {
                 const parentDisplay = parent.style.display;
                 if (['flex', 'grid'].includes(parentDisplay)) {
-                    el.style.left = '';
-                    el.style.top = '';
+                    CanvasAPI.setStyle(el, 'left', '');
+                    CanvasAPI.setStyle(el, 'top', '');
                 }
             }
         }
@@ -116,7 +117,7 @@ export function createLayoutTab({ editor, eventBus }) {
         if (!el) return;
 
         const style = el.style;
-        const computed = window.getComputedStyle(el);
+        const computed = CanvasAPI.getComputedStyle(el);
 
         section.querySelectorAll('[data-prop]').forEach(input => {
             const prop = input.dataset.prop;

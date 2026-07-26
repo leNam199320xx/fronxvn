@@ -17,6 +17,8 @@ import { saveHistoryToPage, restoreHistoryFromPage } from './page-history.js';
 import { restorePageFromSnapshot, generatePageId } from './utils.js';
 import { clearCanvas } from './page-render.js';
 
+import debug from '../debug.js';
+
 export class PageManager {
     constructor(editor) {
         this.editor = editor;
@@ -35,10 +37,12 @@ export class PageManager {
     // ─────────────────────────────────────────────
 
     addPage(opts = {}) {
+        debug.action('page-manager', 'addPage', opts);
         return addPage(this._pages, this._activePageId, this.editor, eventBus, opts);
     }
 
     switchPage(pageId) {
+        debug.action('page-manager', 'switchPage', { pageId });
         if (pageId === this._activePageId) return;
         const fromPage = this._pages.find(p => p.id === this._activePageId);
         const toPage = this._pages.find(p => p.id === pageId);
@@ -71,14 +75,17 @@ export class PageManager {
     }
 
     deletePage(pageId, opts = {}) {
+        debug.action('page-manager', 'deletePage', { pageId });
         deletePage(this._pages, this._activePageId, this.editor, eventBus, pageId, opts);
     }
 
     duplicatePage(pageId) {
+        debug.action('page-manager', 'duplicatePage', { pageId });
         duplicatePage(this._pages, this._activePageId, this.editor, eventBus, pageId);
     }
 
     renamePage(pageId, newName, opts = {}) {
+        debug.action('page-manager', 'renamePage', { pageId, newName });
         renamePage(this._pages, this._activePageId, this.editor, eventBus, pageId, newName, opts);
     }
 

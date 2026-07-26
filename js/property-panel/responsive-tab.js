@@ -1,4 +1,5 @@
 import eventBus from '../event-bus.js';
+import CanvasAPI from '../canvas/canvas-api.js';
 import { EXPORT_COPY_RESET_DELAY } from '../config.js';
 
 export function createResponsiveTab({ editor, eventBus }) {
@@ -137,11 +138,14 @@ export function createResponsiveTab({ editor, eventBus }) {
             errorEl.style.display = 'block';
         }
 
-        selectedElement.removeAttribute('style');
+        CanvasAPI.getDocument().querySelector('#theme-variables');
+        if (selectedElement.getAttribute) {
+            selectedElement.removeAttribute('style');
+        }
 
         Object.entries(applied).forEach(([prop, value]) => {
             try {
-                selectedElement.style.setProperty(prop, value);
+                CanvasAPI.setStyle(selectedElement, prop, value);
                 if (editor.breakpointManager) {
                     const camelProp = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
                     editor.breakpointManager.setStyle(selectedElement, camelProp, value);

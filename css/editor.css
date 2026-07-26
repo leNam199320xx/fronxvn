@@ -17,8 +17,8 @@
     --accent: #0078d4;
     --accent-hover: #1a8cff;
     --border-color: #3e3e42;
-    --grid-color: rgba(255, 255, 255, 0.05);
-    --grid-color-major: rgba(255, 255, 255, 0.1);
+    --grid-color: rgba(0, 0, 0, 0.08);
+    --grid-color-major: rgba(0, 0, 0, 0.15);
     --overlay-color: #0078d4;
     --hover-color: #ff6600;
     --handle-size: 8px;
@@ -105,13 +105,132 @@ html, body {
     text-align: right;
 }
 
+.project-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+.project-name:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+.project-name-input {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--accent);
+    padding: 2px 6px;
+    border-radius: var(--radius);
+    outline: none;
+    width: 160px;
+}
+
 .editor-main {
     display: flex;
     flex: 1;
     overflow: hidden;
+    position: relative;
 }
 
-/* ===== Left Panel (Property) ===== */
+/* ===== Vertical Toolbars (giống editor-toolbar) ===== */
+.toolbar-left,
+.toolbar-right {
+    width: 48px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    gap: 4px;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.toolbar-right {
+    border-right: none;
+    border-left: 1px solid var(--border-color);
+}
+
+.toolbar-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-primary);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 16px;
+    transition: background var(--transition), border-color var(--transition);
+    position: relative;
+}
+
+.toolbar-icon:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+.toolbar-icon.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+/* ===== Floating Panels — flex items, không đè canvas ===== */
+.panel-float {
+    width: 0;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    z-index: 20;
+    display: none;
+    flex-direction: column;
+}
+
+.panel-float.visible {
+    width: 300px;
+    display: flex;
+}
+
+.panel-float-left {
+    border-right: 1px solid var(--border-color);
+}
+
+.panel-float-right {
+    border-right: none;
+    border-left: 1px solid var(--border-color);
+}
+
+.panel-float::-webkit-scrollbar {
+    width: 6px;
+}
+
+.panel-float::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.panel-float::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+/* ===== Left Panel (Property) - legacy support ===== */
 .panel-left {
     width: var(--panel-width);
     background: var(--bg-secondary);
@@ -120,17 +239,8 @@ html, body {
     flex-shrink: 0;
 }
 
-.panel-left::-webkit-scrollbar {
-    width: 6px;
-}
-
-.panel-left::-webkit-scrollbar-track {
-    background: var(--bg-secondary);
-}
-
-.panel-left::-webkit-scrollbar-thumb {
-    background: var(--bg-tertiary);
-    border-radius: 3px;
+.panel-left.hidden {
+    display: none;
 }
 
 /* ===== Canvas Area ===== */
@@ -186,7 +296,7 @@ html, body {
     background-origin: border-box;
 }
 
-/* ===== Right Panel ===== */
+/* ===== Right Panel - legacy support ===== */
 .panel-right {
     width: var(--panel-width);
     background: var(--bg-secondary);
@@ -201,10 +311,6 @@ html, body {
     display: none;
 }
 
-.panel-left.hidden {
-    display: none;
-}
-
 .editor-main.fullscreen .panel-left,
 .editor-main.fullscreen .panel-right {
     display: none;
@@ -212,10 +318,6 @@ html, body {
 
 .editor-main.fullscreen .canvas-wrapper {
     flex: 1;
-}
-
-.panel-right::-webkit-scrollbar {
-    width: 6px;
 }
 
 .panel-right::-webkit-scrollbar-track {
@@ -699,28 +801,33 @@ html, body {
 .canvas [data-editor-element] {
     cursor: default;
     user-select: none;
-    min-width: 20px;
-    min-height: 20px;
 }
 
 /* ===== Tabs cho right panel ===== */
 .panel-tabs {
     display: flex;
-    border-bottom: 1px solid var(--border-color);
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+    border-bottom: none;
     flex-shrink: 0;
+    width: 110px;
 }
 
 .panel-tab {
-    flex: 1;
-    padding: 8px 12px;
-    text-align: center;
+    flex: none;
+    padding: 10px 8px;
+    text-align: left;
     cursor: pointer;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
-    border-bottom: 2px solid transparent;
+    border-bottom: 1px solid var(--border-color);
+    border-left: 2px solid transparent;
     transition: all var(--transition);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .panel-tab:hover {
@@ -730,7 +837,8 @@ html, body {
 
 .panel-tab.active {
     color: var(--accent);
-    border-bottom-color: var(--accent);
+    border-left-color: var(--accent);
+    background: var(--bg-tertiary);
 }
 
 .panel-tab-content {
@@ -739,9 +847,60 @@ html, body {
     overflow-y: auto;
 }
 
+/* ===== Right Panel Content — giống panel trái ===== */
 .panel-tab-content.active {
     display: flex;
     flex-direction: column;
+    padding: 0;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+}
+
+/* ── Header-style elements ── */
+.panel-tab-content.active > .tpl-toolbar,
+.panel-tab-content.active > .tpl-filter-bar,
+.panel-tab-content.active > .quality-panel-header,
+.panel-tab-content.active > .comp-panel-header,
+.panel-tab-content.active > .theme-header,
+.panel-tab-content.active > .el-panel-header {
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    user-select: none;
+}
+
+.panel-tab-content.active > .tpl-toolbar:hover,
+.panel-tab-content.active > .tpl-filter-bar:hover,
+.panel-tab-content.active > .quality-panel-header:hover,
+.panel-tab-content.active > .comp-panel-header:hover,
+.panel-tab-content.active > .theme-header:hover,
+.panel-tab-content.active > .el-panel-header:hover {
+    background: var(--bg-tertiary);
+}
+
+/* ── Body-style elements ── */
+.panel-tab-content.active > .tpl-grid,
+.panel-tab-content.active > .layer-tree,
+.panel-tab-content.active > .theme-body,
+.panel-tab-content.active > .quality-issue-list,
+.panel-tab-content.active > .comp-list,
+.panel-tab-content.active > .element-library-grid,
+.panel-tab-content.active > .el-panel-body {
+    padding: 8px 12px;
+}
+
+/* ── Section dividers between blocks ── */
+.panel-tab-content.active > .tpl-toolbar + .tpl-filter-bar,
+.panel-tab-content.active > .tpl-filter-bar + .tpl-grid,
+.panel-tab-content.active > .theme-header + .theme-body,
+.panel-tab-content.active > .quality-panel-header + .quality-issue-list,
+.panel-tab-content.active > .comp-panel-header + .comp-list {
+    border-top: 1px solid var(--border-color);
 }
 
 /* ===== Scrollbar ===== */
@@ -922,6 +1081,33 @@ html, body {
     white-space: nowrap;
     max-width: 130px;
     display: block;
+}
+
+.page-tab-delete {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    margin-left: 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.page-tab:hover .page-tab-delete {
+    display: flex;
+}
+
+.page-tab-delete:hover {
+    background: var(--bg-tertiary);
+    color: #ff4444;
 }
 
 /* Inline rename input */

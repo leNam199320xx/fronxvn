@@ -8,9 +8,14 @@
  * - Hiển thị Guide Line khi căn chỉnh
  */
 import eventBus from './event-bus.js';
+import CanvasAPI from './canvas/canvas-api.js';
 import { SNAP_THRESHOLD, DRAG_MIN_DISTANCE } from './config.js';
 import { generateElementId } from './core/ids.js';
 import { cloneDeep } from './core/clone.js';
+import RenderScheduler, { PRIORITY } from '../core/render-scheduler.js';
+import CoordinateSystem from './canvas/coordinate.js';
+import DirtyState, { DIRTY } from '../core/dirty-state.js';
+import ViewportCulling from '../core/viewport-culling.js';
 
 export class Drag {
     constructor(editor) {
@@ -23,6 +28,7 @@ export class Drag {
         this.startPositions = []; // [{el, left, top}]
         this.guides = [];
         this.snapThreshold = SNAP_THRESHOLD;
+        this._rafId = null;
 
         // Rubber-band state
         this.rbStartX = 0;
@@ -33,27 +39,25 @@ export class Drag {
 
     /** Bind events */
     _bindEvents() {
-        const wrapper = this.editor.canvasWrapper;
-
-        wrapper.addEventListener('mousedown', (e) => {
-            this._handleMouseDown(e);
+        eventBus.on('pointer:mousedown', (data) => {
+            this._handleMouseDown(data);
         });
 
-        document.addEventListener('mousemove', (e) => {
+        eventBus.on('pointer:mousemove', (data) => {
             if (this.isDragging) {
-                e.preventDefault();
-                this._handleDragMove(e);
+                data.preventDefault = true;
+                this._handleDragMove(data);
             } else if (this.isRubberBanding) {
-                e.preventDefault();
-                this._handleRubberBandMove(e);
+                data.preventDefault = true;
+                this._handleRubberBandMove(data);
             }
         });
 
-        document.addEventListener('mouseup', (e) => {
+        eventBus.on('pointer:mouseup', (data) => {
             if (this.isDragging) {
-                this._handleDragUp(e);
+                this._handleDragUp(data);
             } else if (this.isRubberBanding) {
-                this._handleRubberBandUp(e);
+                this._handleRubberBandUp(data);
             }
         });
 
@@ -65,8 +69,10 @@ export class Drag {
 
     /** Xử lý mousedown */
     _handleMouseDown(e) {
+        if (e.button === 1) return;
+
         // Move handle drag
-        if (e.target.closest('.move-handle')) {
+        if (CanvasAPI.closest(e.target, '.move-handle')) {
             const selected = this.editor.selection.getSelectedAll();
             if (selected.length > 0) {
                 this._startDrag(e, selected);
@@ -75,20 +81,19 @@ export class Drag {
         }
 
         // Bỏ qua resize/rotate handle
-        if (e.target.closest('.resize-handle') || e.target.closest('.rotation-handle')) {
+        if (CanvasAPI.closest(e.target, '.resize-handle') || CanvasAPI.closest(e.target, '.rotation-handle')) {
             return;
         }
 
-        const el = e.target.closest('[data-editor-element]');
+        const target = e.target;
+        const el = CanvasAPI.closest(target, '[data-editor-element]');
 
         if (el && this.editor.selection.isSelected(el)) {
-            // Element đang chọn được click -> bắt đầu drag tất cả selected
             this._startDrag(e, this.editor.selection.getSelectedAll());
             return;
         }
 
         if (!el && !e.shiftKey) {
-            // Click vùng trống -> bắt đầu rubber-band
             this._startRubberBand(e);
         }
     }
@@ -106,17 +111,20 @@ export class Drag {
 
         this.isDragging = true;
         this.dragElements = elements;
-        this.startX = e.clientX;
-        this.startY = e.clientY;
+
+        const start = CoordinateSystem.mousePosition(e);
+        this.startX = start.x;
+        this.startY = start.y;
 
         // Lưu vị trí ban đầu của tất cả elements
         this.startPositions = elements.map(el => ({
             el,
-            left: parseFloat(el.style.left) || 0,
-            top: parseFloat(el.style.top) || 0
+            left: parseFloat(CanvasAPI.getStyle(el, 'left')) || 0,
+            top: parseFloat(CanvasAPI.getStyle(el, 'top')) || 0
         }));
 
         document.body.style.cursor = 'grabbing';
+        DirtyState.mark(DIRTY.OVERLAY);
         eventBus.emit('drag:start', elements);
     }
 
@@ -128,10 +136,10 @@ export class Drag {
      */
     _duplicateForDrag(elements) {
         const copies = elements.map(el => {
-            const clone = el.cloneNode(true);
+            const clone = CanvasAPI.clone(el, true);
             clone.id = generateElementId();
             if (el.__bpStyles) clone.__bpStyles = cloneDeep(el.__bpStyles);
-            el.parentNode.insertBefore(clone, el.nextSibling);
+            CanvasAPI.insertAfter(clone, el, el.parentNode);
             eventBus.emit('history:push', { type: 'add', element: clone, parent: el.parentNode });
             eventBus.emit('element:added', clone);
             return clone;
@@ -153,15 +161,21 @@ export class Drag {
     _handleDragMove(e) {
         if (this.dragElements.length === 0) return;
 
-        const zoom = this.editor.zoom;
-        let dx = (e.clientX - this.startX) / zoom;
-        let dy = (e.clientY - this.startY) / zoom;
+        const current = CoordinateSystem.mousePosition(e);
+        let dx = current.x - this.startX;
+        let dy = current.y - this.startY;
 
         // Giữ Shift -> chỉ kéo theo 1 trục
         if (e.shiftKey) {
             if (Math.abs(dx) > Math.abs(dy)) dy = 0;
             else dx = 0;
         }
+
+        RenderScheduler.schedule('drag-visual', () => this._applyDrag(dx, dy), PRIORITY.HIGH);
+    }
+
+    _applyDrag(dx, dy) {
+        if (this.dragElements.length === 0) return;
 
         if (this.dragElements.length === 1) {
             // Single drag: snap + guides
@@ -178,8 +192,8 @@ export class Drag {
             newLeft = snapResult.x;
             newTop = snapResult.y;
 
-            this.dragElements[0].style.left = newLeft + 'px';
-            this.dragElements[0].style.top = newTop + 'px';
+            CanvasAPI.setStyle(this.dragElements[0], 'left', newLeft + 'px');
+            CanvasAPI.setStyle(this.dragElements[0], 'top', newTop + 'px');
 
             this._showGuides(snapResult.guides);
         } else {
@@ -194,8 +208,8 @@ export class Drag {
                     newTop = this.editor.snapToGrid(newTop);
                 }
 
-                sp.el.style.left = newLeft + 'px';
-                sp.el.style.top = newTop + 'px';
+                CanvasAPI.setStyle(sp.el, 'left', newLeft + 'px');
+                CanvasAPI.setStyle(sp.el, 'top', newTop + 'px');
                 eventBus.emit('element:transform', sp.el);
             });
         }
@@ -207,10 +221,13 @@ export class Drag {
 
     /** Xử lý khi thả */
     _handleDragUp(e) {
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
+        }
         this._clearGuides();
         document.body.style.cursor = '';
 
-        // Lưu history cho từng element đã di chuyển
         this.startPositions.forEach(sp => {
             const endLeft = parseFloat(sp.el.style.left) || 0;
             const endTop = parseFloat(sp.el.style.top) || 0;
@@ -223,7 +240,6 @@ export class Drag {
                     after: { left: endLeft, top: endTop }
                 });
 
-                // Sync vào breakpoint store
                 const bpMgr = this.editor.breakpointManager;
                 bpMgr.setStyle(sp.el, 'left', endLeft + 'px');
                 bpMgr.setStyle(sp.el, 'top', endTop + 'px');
@@ -244,7 +260,7 @@ export class Drag {
     /** Bắt đầu rubber-band selection */
     _startRubberBand(e) {
         this.isRubberBanding = true;
-        const canvasPoint = this.editor.getCanvasPoint(e);
+        const canvasPoint = CoordinateSystem.mousePosition(e);
         this.rbStartX = e.clientX;
         this.rbStartY = e.clientY;
         this._rbCanvasStartX = canvasPoint.x;
@@ -253,7 +269,7 @@ export class Drag {
 
     /** Cập nhật rubber-band rect */
     _handleRubberBandMove(e) {
-        const layerRect = this.editor.overlayLayer.getBoundingClientRect();
+        const layerRect = CanvasAPI.getElementRect(this.editor.overlayLayer);
         const x = e.clientX - layerRect.left;
         const y = e.clientY - layerRect.top;
         const startX = this.rbStartX - layerRect.left;
@@ -272,7 +288,7 @@ export class Drag {
         eventBus.emit('rubber-band:end');
         this.isRubberBanding = false;
 
-        const canvasPoint = this.editor.getCanvasPoint(e);
+        const canvasPoint = CoordinateSystem.mousePosition(e);
         const x1 = Math.min(this._rbCanvasStartX, canvasPoint.x);
         const y1 = Math.min(this._rbCanvasStartY, canvasPoint.y);
         const x2 = Math.max(this._rbCanvasStartX, canvasPoint.x);
@@ -336,19 +352,26 @@ export class Drag {
     /** Hiển thị guide lines */
     _showGuides(guideData) {
         this._clearGuides();
+        const vr = ViewportCulling.viewportRect();
         guideData.forEach(guide => {
-            const line = document.createElement('div');
-            line.className = `guide-line ${guide.type}`;
-            if (guide.type === 'vertical') line.style.left = guide.pos + 'px';
-            else line.style.top = guide.pos + 'px';
-            this.editor.canvas.appendChild(line);
+            const pos = guide.pos;
+            if (guide.type === 'vertical') {
+                if (pos < vr.left || pos > vr.right) return;
+            } else {
+                if (pos < vr.top || pos > vr.bottom) return;
+            }
+            const line = CanvasAPI.create('div');
+            CanvasAPI.setAttribute(line, 'class', `guide-line ${guide.type}`);
+            if (guide.type === 'vertical') CanvasAPI.setStyle(line, 'left', pos + 'px');
+            else CanvasAPI.setStyle(line, 'top', pos + 'px');
+            CanvasAPI.append(line);
             this.guides.push(line);
         });
     }
 
     /** Xóa guide lines */
     _clearGuides() {
-        this.guides.forEach(g => g.remove());
+        this.guides.forEach(g => CanvasAPI.remove(g));
         this.guides = [];
     }
 
@@ -360,13 +383,13 @@ export class Drag {
         if (elements.length === 0) return;
 
         elements.forEach(el => {
-            const left = parseFloat(el.style.left) || 0;
-            const top = parseFloat(el.style.top) || 0;
+            const left = parseFloat(CanvasAPI.getStyle(el, 'left')) || 0;
+            const top = parseFloat(CanvasAPI.getStyle(el, 'top')) || 0;
             const newLeft = left + dx;
             const newTop = top + dy;
 
-            el.style.left = newLeft + 'px';
-            el.style.top = newTop + 'px';
+            CanvasAPI.setStyle(el, 'left', newLeft + 'px');
+            CanvasAPI.setStyle(el, 'top', newTop + 'px');
 
             eventBus.emit('history:push', {
                 type: 'move',

@@ -1,9 +1,10 @@
 import { generateInstanceId } from './utils.js';
 import { generateElementId } from '../core/ids.js';
 import { cloneDeep } from '../core/clone.js';
+import CanvasAPI from '../canvas/canvas-api.js';
 
 export function createDOM(def, instanceId) {
-    const tempDiv = document.createElement('div');
+    const tempDiv = CanvasAPI.createElement('div');
     tempDiv.innerHTML = def.html;
 
     const roots = Array.from(tempDiv.children);
@@ -12,7 +13,7 @@ export function createDOM(def, instanceId) {
     if (roots.length === 1) {
         root = roots[0];
     } else {
-        root = document.createElement('div');
+        root = CanvasAPI.createElement('div');
         root.setAttribute('data-editor-element', '');
         root.dataset.type = 'container';
         root.dataset.name = def.name;

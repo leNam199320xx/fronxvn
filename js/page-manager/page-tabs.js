@@ -1,8 +1,10 @@
 import { TAB_NAME_MAX_LENGTH } from '../config.js';
 import { findPage } from './utils.js';
 import { showTabContextMenu, activateInlineRename } from './page-context.js';
+import debug from '../debug.js';
 
 export function renderTabBar(pages, activePageId, editor, eventBus) {
+    debug.action('page-tabs', 'renderTabBar', { count: pages.length, active: activePageId });
     let tabBar = document.getElementById('page-tab-bar');
     if (!tabBar) {
         tabBar = document.createElement('div');
@@ -44,6 +46,16 @@ export function buildTabElement(page, activePageId, editor, pages, eventBus) {
         ? page.name.slice(0, TAB_NAME_MAX_LENGTH) + '…'
         : page.name;
     tab.appendChild(nameSpan);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'page-tab-delete';
+    deleteBtn.textContent = '✕';
+    deleteBtn.title = 'Delete page';
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        eventBus.emit('page:delete', page.id);
+    });
+    tab.appendChild(deleteBtn);
 
     tab.addEventListener('click', (e) => {
         if (e.target.tagName === 'INPUT') return;

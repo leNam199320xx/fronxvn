@@ -1,0 +1,280 @@
+.editor-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+}
+
+.editor-toolbar {
+    height: var(--toolbar-height);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.editor-toolbar .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.editor-toolbar .toolbar-separator {
+    width: 1px;
+    height: 20px;
+    background: var(--border-color);
+    margin: 0 8px;
+}
+
+.editor-toolbar button {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: var(--font-size);
+    transition: background var(--transition);
+}
+
+.editor-toolbar button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+.editor-toolbar button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.editor-toolbar .zoom-display {
+    color: var(--text-secondary);
+    min-width: 50px;
+    text-align: center;
+}
+
+.editor-toolbar .coords-display {
+    color: var(--text-secondary);
+    margin-left: auto;
+    min-width: 100px;
+    text-align: right;
+}
+
+.project-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+.project-name:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+.project-name-input {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--accent);
+    padding: 2px 6px;
+    border-radius: var(--radius);
+    outline: none;
+    width: 160px;
+}
+
+.editor-main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.toolbar-left,
+.toolbar-right {
+    width: 48px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    gap: 4px;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.toolbar-right {
+    border-right: none;
+    border-left: 1px solid var(--border-color);
+}
+
+.toolbar-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-primary);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 16px;
+    transition: background var(--transition), border-color var(--transition);
+    position: relative;
+}
+
+.toolbar-icon:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+.toolbar-icon.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.panel-float {
+    width: 0;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    overflow-y: auto;
+    z-index: 20;
+    display: none;
+    flex-direction: column;
+}
+
+.panel-float.visible {
+    width: 300px;
+    display: flex;
+}
+
+.panel-float-left {
+    border-right: 1px solid var(--border-color);
+}
+
+.panel-float-right {
+    border-right: none;
+    border-left: 1px solid var(--border-color);
+}
+
+.panel-float::-webkit-scrollbar {
+    width: 6px;
+}
+
+.panel-float::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.panel-float::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+.panel-left {
+    width: var(--panel-width);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.panel-left.hidden {
+    display: none;
+}
+
+.canvas-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-canvas);
+}
+
+.canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
+
+.canvas-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100%;
+    min-height: 100%;
+    padding: 60px;
+    box-sizing: border-box;
+}
+
+.canvas {
+    position: relative;
+    width: 1440px;
+    min-height: 900px;
+    background: white;
+    flex-shrink: 0;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    transform-origin: top center;
+}
+
+.canvas.show-grid {
+    background-image:
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+        linear-gradient(var(--grid-color-major) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color-major) 1px, transparent 1px);
+    background-size:
+        10px 10px,
+        10px 10px,
+        100px 100px,
+        100px 100px;
+    background-origin: border-box;
+}
+
+.panel-right {
+    width: var(--panel-width);
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.panel-right.hidden {
+    display: none;
+}
+
+.editor-main.fullscreen .panel-left,
+.editor-main.fullscreen .panel-right {
+    display: none;
+}
+
+.editor-main.fullscreen .canvas-wrapper {
+    flex: 1;
+}
+
+.panel-right::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.panel-right::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}

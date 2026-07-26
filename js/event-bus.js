@@ -2,7 +2,9 @@
  * EventBus - Module giao tiếp trung tâm giữa các module
  * Các module không gọi trực tiếp lẫn nhau mà thông qua EventBus
  */
-class EventBus {
+import debug from './debug.js';
+
+export class EventBus {
     constructor() {
         this._listeners = {};
     }
@@ -58,8 +60,10 @@ class EventBus {
      * @param {...*} args - Dữ liệu đi kèm
      */
     emit(event, ...args) {
+        if(event != "canvas:mousemove" && event != "canvas:mouseup" && event != "canvas:mousedown") {
+            debug.action('event-bus', `emit ${event}`, args.length > 0 ? args[0] : undefined);
+        }
         if (!this._listeners[event]) return;
-        // Clone mảng để tránh lỗi khi listener tự hủy trong callback
         const listeners = [...this._listeners[event]];
         listeners.forEach(listener => {
             listener.callback.apply(listener.context, args);

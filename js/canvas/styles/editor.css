@@ -1,0 +1,44 @@
+#canvas {
+    position: relative;
+    width: 1440px;
+    min-height: 900px;
+    background: white;
+    flex-shrink: 0;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    transform-origin: top center;
+}
+#canvas.show-grid {
+    background-image:
+        linear-gradient(rgba(0,0,0,0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.08) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.15) 1px, transparent 1px);
+    background-size: 10px 10px, 10px 10px, 100px 100px, 100px 100px;
+    background-origin: border-box;
+}
+#canvas.bp-tablet {
+    box-shadow: 0 0 0 2px #f0a000, 0 0 0 4px rgba(240,160,0,0.2);
+}
+#canvas.bp-mobile {
+    box-shadow: 0 0 0 2px #e05050, 0 0 0 4px rgba(224,80,80,0.2);
+}
+#canvas [data-editor-element] {
+    cursor: default;
+    user-select: none;
+}
+.guide-line {
+    position: absolute;
+    background: var(--guide-color, #00e5ff);
+    pointer-events: none;
+    z-index: 9998;
+}
+.guide-line.horizontal {
+    height: 1px;
+    width: 100%;
+    left: 0;
+}
+.guide-line.vertical {
+    width: 1px;
+    height: 100%;
+    top: 0;
+}

@@ -102,10 +102,12 @@ const TOKEN_GROUPS = [
     }
 ];
 
+import debug from './debug.js';
+import CanvasAPI from './canvas/canvas-api.js';
 export class ThemeManager {
     constructor(editor) {
         this.editor    = editor;
-        this.container = document.querySelector('[data-tab-content="theme"]');
+        this.container = document.querySelector('#panel-right');
 
         /** Current token values — starts from defaults */
         this._tokens = { ...THEME_DEFAULTS };
@@ -115,7 +117,6 @@ export class ThemeManager {
 
         this._ensureStyleEl();
         this._applyAll();
-        this._render();
         this._bindEvents();
     }
 
@@ -136,6 +137,7 @@ export class ThemeManager {
      * @param {Object} tokens
      */
     loadTheme(tokens) {
+        debug.action('theme', 'loadTheme', { tokenCount: tokens ? Object.keys(tokens).length : 0 });
         if (!tokens || typeof tokens !== 'object') return;
         // Merge với defaults để đảm bảo tất cả tokens đều có giá trị
         this._tokens = { ...THEME_DEFAULTS, ...tokens };
@@ -148,6 +150,7 @@ export class ThemeManager {
      * Reset tất cả tokens về defaults.
      */
     resetToDefaults() {
+        debug.action('theme', 'resetToDefaults');
         this._tokens = { ...THEME_DEFAULTS };
         this._applyAll();
         this._render();
@@ -174,11 +177,11 @@ export class ThemeManager {
      * Inject vào <head> để tất cả elements trên canvas inherit được.
      */
     _ensureStyleEl() {
-        let el = document.getElementById('theme-variables');
+        let el = CanvasAPI.getDocument().getElementById('theme-variables');
         if (!el) {
-            el = document.createElement('style');
+            el = CanvasAPI.createElement('style');
             el.id = 'theme-variables';
-            document.head.appendChild(el);
+            CanvasAPI.getDocument().head.appendChild(el);
         }
         this._styleEl = el;
     }
@@ -199,6 +202,7 @@ export class ThemeManager {
      * @param {string} value
      */
     _setToken(key, value) {
+        debug.action('theme', 'setToken', { key, value });
         this._tokens[key] = value;
         this._applyAll();
         eventBus.emit('theme:changed', this._tokens);
@@ -213,39 +217,58 @@ export class ThemeManager {
         if (!this.container) return;
         this.container.innerHTML = '';
 
-        // ── Header ────────────────────────────────────────────────────────────
+        const section = document.createElement('div');
+        section.className = 'panel-section';
+
         const header = document.createElement('div');
-        header.className = 'theme-header';
-        header.innerHTML = `
+        header.className = 'panel-section-header';
+        header.innerHTML = 'Theme <span class="arrow">▼</span>';
+
+        const body = document.createElement('div');
+        body.className = 'panel-section-body';
+
+        // ── Header ────────────────────────────────────────────────────────────
+        const themeHeader = document.createElement('div');
+        themeHeader.className = 'theme-header';
+        themeHeader.innerHTML = `
             <span class="theme-title">Design Tokens</span>
             <button class="theme-reset-btn" title="Reset to defaults">↺ Reset</button>
         `;
-        header.querySelector('.theme-reset-btn').addEventListener('click', () => {
+        themeHeader.querySelector('.theme-reset-btn').addEventListener('click', () => {
             if (confirm('Reset all tokens to defaults?')) this.resetToDefaults();
         });
-        this.container.appendChild(header);
+        body.appendChild(themeHeader);
 
         // ── Token groups ──────────────────────────────────────────────────────
-        const body = document.createElement('div');
-        body.className = 'theme-body';
+        const themeBody = document.createElement('div');
+        themeBody.className = 'theme-body';
 
         TOKEN_GROUPS.forEach(group => {
-            const section = document.createElement('div');
-            section.className = 'theme-group';
+            const groupSection = document.createElement('div');
+            groupSection.className = 'theme-group';
 
             const groupHeader = document.createElement('div');
             groupHeader.className = 'theme-group-label';
             groupHeader.textContent = group.label;
-            section.appendChild(groupHeader);
+            groupSection.appendChild(groupHeader);
 
             group.tokens.forEach(token => {
-                section.appendChild(this._buildTokenRow(token));
+                groupSection.appendChild(this._buildTokenRow(token));
             });
 
-            body.appendChild(section);
+            themeBody.appendChild(groupSection);
         });
 
-        this.container.appendChild(body);
+        body.appendChild(themeBody);
+
+        header.addEventListener('click', () => {
+            header.classList.toggle('collapsed');
+            body.classList.toggle('collapsed');
+        });
+
+        section.appendChild(header);
+        section.appendChild(body);
+        this.container.appendChild(section);
     }
 
     /**
@@ -386,6 +409,14 @@ export class ThemeManager {
         // Auto-save khi theme thay đổi
         eventBus.on('theme:changed', () => {
             eventBus.emit('project:schedule-save');
+        });
+
+        eventBus.on('tab:switch', (tabName) => {
+            if (tabName === 'theme') {
+                this._ensureStyleEl();
+                this._applyAll();
+                this._render();
+            }
         });
     }
 }

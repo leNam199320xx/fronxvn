@@ -6,6 +6,8 @@ import eventBus from './event-bus.js';
 import { PASTE_OFFSET } from './config.js';
 import { generateElementId } from './core/ids.js';
 
+import debug from './debug.js';
+
 export class Clipboard {
     constructor(editor) {
         this.editor = editor;
@@ -27,7 +29,7 @@ export class Clipboard {
     copy() {
         const elements = this.editor.selection.getSelectedAll();
         if (elements.length === 0) return;
-        // Lưu clone của tất cả selected elements
+        debug.action('clipboard', 'copy', { count: elements.length });
         this.clipboardData = elements.map(el => el.cloneNode(true));
     }
 
@@ -35,6 +37,7 @@ export class Clipboard {
     cut() {
         const elements = this.editor.selection.getSelectedAll();
         if (elements.length === 0) return;
+        debug.action('clipboard', 'cut', { count: elements.length });
 
         this.clipboardData = elements.map(el => el.cloneNode(true));
 
@@ -57,6 +60,7 @@ export class Clipboard {
     /** Paste element */
     paste() {
         if (!this.clipboardData || this.clipboardData.length === 0) return;
+        debug.action('clipboard', 'paste', { count: this.clipboardData.length });
 
         const target = this.editor.selection.getSelected();
         const parent = (target && target.dataset.container === 'true') ? target : this.editor.canvas;
@@ -87,6 +91,7 @@ export class Clipboard {
     duplicate() {
         const elements = this.editor.selection.getSelectedAll();
         if (elements.length === 0) return;
+        debug.action('clipboard', 'duplicate', { count: elements.length });
 
         const newElements = elements.map(el => {
             const clone = el.cloneNode(true);
@@ -115,6 +120,7 @@ export class Clipboard {
     delete() {
         const elements = this.editor.selection.getSelectedAll();
         if (elements.length === 0) return;
+        debug.action('clipboard', 'delete', { count: elements.length });
 
         elements.forEach(el => {
             const parent = el.parentNode;

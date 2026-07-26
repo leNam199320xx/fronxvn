@@ -11,10 +11,12 @@ import { serializeElement, deserializeElement, showNotification, generateId } fr
 import { DEFAULT_ELEMENT_POSITION } from '../config.js';
 
 
+import debug from '../debug.js';
+
 export class TemplateManager {
     constructor(editor) {
         this.editor    = editor;
-        this.container = document.querySelector('[data-tab-content="templates"]');
+        this.container = document.querySelector('#panel-right');
 
         this._builtins = BUILTIN_TEMPLATES;
         this._userTemplates = loadUserTemplates();
@@ -22,7 +24,6 @@ export class TemplateManager {
         this._searchQuery = '';
 
         this._bindEvents();
-        this._render();
     }
 
     _bindEvents() {
@@ -35,6 +36,16 @@ export class TemplateManager {
         }
 
         this.container.innerHTML = '';
+
+        const section = document.createElement('div');
+        section.className = 'panel-section';
+
+        const header = document.createElement('div');
+        header.className = 'panel-section-header';
+        header.innerHTML = 'Templates <span class="arrow">▼</span>';
+
+        const body = document.createElement('div');
+        body.className = 'panel-section-body';
 
         const toolbar = document.createElement('div');
         toolbar.className = 'tpl-toolbar';
@@ -57,7 +68,7 @@ export class TemplateManager {
         btnSave.addEventListener('click', () => this._saveSelectionAsUserTemplate());
         toolbar.appendChild(btnSave);
 
-        this.container.appendChild(toolbar);
+        body.appendChild(toolbar);
 
         const filterBar = document.createElement('div');
         filterBar.className = 'tpl-filter-bar';
@@ -81,12 +92,21 @@ export class TemplateManager {
             filterBar.appendChild(btn);
         });
 
-        this.container.appendChild(filterBar);
+        body.appendChild(filterBar);
 
         const grid = document.createElement('div');
         grid.className = 'tpl-grid';
         this._renderGrid(grid);
-        this.container.appendChild(grid);
+        body.appendChild(grid);
+
+        header.addEventListener('click', () => {
+            header.classList.toggle('collapsed');
+            body.classList.toggle('collapsed');
+        });
+
+        section.appendChild(header);
+        section.appendChild(body);
+        this.container.appendChild(section);
     }
 
     _renderGrid(grid) {
@@ -206,6 +226,7 @@ export class TemplateManager {
     }
 
     _insertAsNewProject(tpl) {
+        debug.action('template', 'insertAsNewProject', { name: tpl.name, pages: tpl.pages_data?.length || 0 });
         const hasContent = this.editor.canvas.querySelector('[data-editor-element]');
 
         if (hasContent) {
@@ -228,6 +249,7 @@ export class TemplateManager {
     }
 
     _insertPages(tpl) {
+        debug.action('template', 'insertPages', { name: tpl.name, pages: tpl.pages_data?.length || 0 });
         const pages = regenPageIds(tpl.pages_data);
 
         const currentPages = this.editor.pageManager.getPages();
@@ -238,6 +260,7 @@ export class TemplateManager {
     }
 
     _insertUserTemplate(tpl) {
+        debug.action('template', 'insertUserTemplate', { name: tpl.name });
         const el = deserializeElement(tpl.data);
         const selected = this.editor.selection.getSelected();
         const parent = (selected?.dataset.container === 'true') ? selected : this.editor.canvas;
@@ -266,6 +289,7 @@ export class TemplateManager {
     _saveSelectionAsUserTemplate() {
         const el = this.editor.selection.getSelected();
         if (!el) {
+            debug.action('template', 'saveSelectionAsUserTemplate', { error: 'no selection' });
             showNotification('Select an element first.');
             return;
         }
@@ -273,6 +297,7 @@ export class TemplateManager {
         const name = prompt('Template name:', el.dataset.name || el.dataset.type || 'My Template');
         if (name === null) return;
 
+        debug.action('template', 'saveSelectionAsUserTemplate', { name: name || 'My Template' });
         const tpl = {
             id:        generateId('tpl', 5),
             name:      name || 'My Template',
@@ -289,6 +314,7 @@ export class TemplateManager {
     }
 
     _deleteUserTemplate(id) {
+        debug.action('template', 'deleteUserTemplate', { id });
         this._userTemplates = this._userTemplates.filter(t => t.id !== id);
         saveUserTemplates(this._userTemplates);
         this._render();

@@ -5,16 +5,24 @@
 import eventBus from './event-bus.js';
 import { LAYER_INDENT_PER_LEVEL, SELECTION_EDIT_OUTLINE } from './config.js';
 import { inlineRename } from './ui/utils.js';
+import DirtyState, { DIRTY } from '../core/dirty-state.js';
+import RenderPipeline from '../core/render-pipeline.js';
+
+import debug from './debug.js';
 
 export class LayerPanel {
     constructor(editor) {
         this.editor = editor;
-        this.container = document.querySelector('[data-tab-content="layers"]');
+        this.container = document.querySelector('#panel-right');
         this.selectedElements = [];   // Mảng thay vì single
         this.expandedMap = new Map();
 
         this._bindEvents();
-        this._render();
+        this._registerPipeline();
+    }
+
+    _registerPipeline() {
+        RenderPipeline.on('pipeline-layer', () => this._render());
     }
 
     /** Bind events */
@@ -34,14 +42,31 @@ export class LayerPanel {
             this._highlightLayers();
         });
 
-        eventBus.on('element:added', () => this._render());
-        eventBus.on('element:deleted', () => this._render());
-        eventBus.on('layer:refresh', () => this._render());
+        eventBus.on('element:added', () => DirtyState.mark(DIRTY.LAYER));
+        eventBus.on('element:deleted', () => DirtyState.mark(DIRTY.LAYER));
+        eventBus.on('layer:refresh', () => DirtyState.mark(DIRTY.LAYER));
+
+        eventBus.on('tab:switch', (tabName) => {
+            if (tabName === 'layers') {
+                RenderPipeline.flushStage('pipeline-layer');
+            }
+        });
     }
 
     /** Render layer tree */
     _render() {
+        debug.action('layer-panel', 'render', { canvasChildren: this.editor.canvas.children.length });
         this.container.innerHTML = '';
+
+        const section = document.createElement('div');
+        section.className = 'panel-section';
+
+        const header = document.createElement('div');
+        header.className = 'panel-section-header';
+        header.innerHTML = 'Layers <span class="arrow">▼</span>';
+
+        const body = document.createElement('div');
+        body.className = 'panel-section-body';
 
         const tree = document.createElement('div');
         tree.className = 'layer-tree';
@@ -52,7 +77,16 @@ export class LayerPanel {
             this._renderNode(el, tree, 0);
         });
 
-        this.container.appendChild(tree);
+        body.appendChild(tree);
+
+        header.addEventListener('click', () => {
+            header.classList.toggle('collapsed');
+            body.classList.toggle('collapsed');
+        });
+
+        section.appendChild(header);
+        section.appendChild(body);
+        this.container.appendChild(section);
     }
 
     /** Render một node */
@@ -84,7 +118,7 @@ export class LayerPanel {
                 e.stopPropagation();
                 const isExpanded = this.expandedMap.get(el.id) !== false;
                 this.expandedMap.set(el.id, !isExpanded);
-                this._render();
+                RenderPipeline.flushStage('pipeline-layer');
             });
         }
         item.appendChild(toggle);
@@ -161,6 +195,7 @@ export class LayerPanel {
             const draggedId = e.dataTransfer.getData('text/plain');
             const draggedEl = document.getElementById(draggedId);
             if (draggedEl && draggedEl !== el) {
+                debug.action('layer-panel', 'reorder', { from: draggedEl.id, to: el.id });
                 el.parentNode.insertBefore(draggedEl, el.nextSibling);
                 eventBus.emit('layer:refresh');
                 eventBus.emit('element:updated', draggedEl);
@@ -183,6 +218,7 @@ export class LayerPanel {
      */
     _toggleVisibility(el) {
         const isHidden = el.dataset.hidden === 'true';
+        debug.action('layer-panel', `toggleVisibility ${isHidden ? 'show' : 'hide'}`, { id: el.id });
         if (isHidden) {
             // Show: khôi phục display gốc
             el.dataset.hidden = 'false';
@@ -197,16 +233,17 @@ export class LayerPanel {
             el.style.display = 'none';
         }
         eventBus.emit('element:updated', el);
-        this._render();
+        RenderPipeline.flushStage('pipeline-layer');
     }
 
     /** Bắt đầu rename */
     _startRename(el, nameSpan) {
+        debug.action('layer-panel', 'startRename', { id: el.id, name: el.dataset.name || el.dataset.type });
         inlineRename(nameSpan, el.dataset.name || el.dataset.type || '', {
             inputClassName: 'layer-name-input',
             onCommit: (newName) => {
                 el.dataset.name = newName || el.dataset.type;
-                this._render();
+                RenderPipeline.flushStage('pipeline-layer');
             }
         });
     }

@@ -7,6 +7,8 @@ import { getPlainComponents, loadComponentsFromData } from './storage.js';
 import { generateComponentId, generateInstanceId, findDef } from './utils.js';
 import { COMPONENT_INSERT_BASE_X, COMPONENT_INSERT_BASE_Y } from '../config.js';
 
+import debug from '../debug.js';
+
 export class ComponentManager {
     constructor(editor) {
         this.editor = editor;
@@ -15,6 +17,7 @@ export class ComponentManager {
     }
 
     saveComponent(name) {
+        debug.action('component', 'saveComponent', { name });
         const elements = this.editor.selection.getSelectedAll();
         const def = create(this._components, elements, name);
         if (def) {
@@ -25,6 +28,7 @@ export class ComponentManager {
     }
 
     insertComponent(componentId, opts = {}) {
+        debug.action('component', 'insertComponent', { componentId });
         const def = findDef(this._components, componentId);
         if (!def) {
             console.warn(`[ComponentManager] insertComponent: component "${componentId}" not found`);
@@ -55,6 +59,7 @@ export class ComponentManager {
     }
 
     updateDefinition(componentId) {
+        debug.action('component', 'updateDefinition', { componentId });
         const def = findDef(this._components, componentId);
         if (!def) return;
 
@@ -73,10 +78,12 @@ export class ComponentManager {
     }
 
     detachInstance(instanceEl) {
+        debug.action('component', 'detachInstance', { id: instanceEl.id });
         detach(instanceEl);
     }
 
     deleteComponent(componentId) {
+        debug.action('component', 'deleteComponent', { componentId });
         const def = findDef(this._components, componentId);
         if (!def) return;
 
@@ -85,6 +92,7 @@ export class ComponentManager {
     }
 
     renameComponent(componentId, newName) {
+        debug.action('component', 'renameComponent', { componentId, newName });
         rename(this._components, componentId, newName);
     }
 

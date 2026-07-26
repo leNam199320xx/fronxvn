@@ -5,6 +5,8 @@
 import eventBus from './event-bus.js';
 import { HISTORY_MAX_SIZE } from './config.js';
 
+import debug from './debug.js';
+
 export class History {
     constructor(editor) {
         this.editor = editor;
@@ -32,6 +34,7 @@ export class History {
 
     /** Thêm action vào history */
     push(action) {
+        debug.action('history', 'push', action);
         // Lưu thêm nextSibling tại thời điểm push để insertBefore chính xác khi undo
         if ((action.type === 'add' || action.type === 'delete') && action.element) {
             action.nextSibling = action.element.nextSibling || null;
@@ -55,6 +58,7 @@ export class History {
         if (this.undoStack.length === 0) return;
 
         const action = this.undoStack.pop();
+        debug.action('history', 'undo', action);
         this.redoStack.push(action);
 
         this._revert(action);
@@ -70,6 +74,7 @@ export class History {
         if (this.redoStack.length === 0) return;
 
         const action = this.redoStack.pop();
+        debug.action('history', 'redo', action);
         this.undoStack.push(action);
 
         this._apply(action);

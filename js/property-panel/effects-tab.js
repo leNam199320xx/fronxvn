@@ -1,5 +1,6 @@
 import { createSection } from './utils.js';
 import eventBus from '../event-bus.js';
+import CanvasAPI from '../canvas/canvas-api.js';
 import { DEFAULT_COLOR_FALLBACK } from '../config.js';
 
 const SHADOW_FIELDS = [
@@ -20,7 +21,7 @@ export function createEffectsTab({ editor, eventBus }) {
     function applyProperty(prop, value) {
         if (!selectedElement) return;
         const before = selectedElement.style[prop];
-        selectedElement.style[prop] = value;
+        CanvasAPI.setStyle(selectedElement, prop, value);
         if (bpManager) {
             bpManager.setStyle(selectedElement, prop, value);
         }

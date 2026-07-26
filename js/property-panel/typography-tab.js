@@ -1,5 +1,6 @@
 import { createSection, toHex } from './utils.js';
 import eventBus from '../event-bus.js';
+import CanvasAPI from '../canvas/canvas-api.js';
 import { DEFAULT_COLOR_FALLBACK } from '../config.js';
 
 const TYPOGRAPHY_FIELDS = [
@@ -26,7 +27,7 @@ export function createTypographyTab({ editor, eventBus }) {
                 value = value + 'px';
             }
         }
-        selectedElement.style[prop] = value;
+        CanvasAPI.setStyle(selectedElement, prop, value);
         if (bpManager) {
             bpManager.setStyle(selectedElement, prop, value);
         }
@@ -44,7 +45,7 @@ export function createTypographyTab({ editor, eventBus }) {
         });
         if (!el) return;
         const style = el.style;
-        const computed = window.getComputedStyle(el);
+        const computed = CanvasAPI.getComputedStyle(el);
         section.querySelectorAll('[data-prop]').forEach(input => {
             const prop = input.dataset.prop;
             if (prop.endsWith('-text')) return;

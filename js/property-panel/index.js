@@ -8,6 +8,8 @@ import { createEffectsTab } from './effects-tab.js';
 import { createTransformTab } from './transform-tab.js';
 import { createResponsiveTab } from './responsive-tab.js';
 import { DEFAULT_COLOR_FALLBACK } from '../config.js';
+import RenderPipeline from '../core/render-pipeline.js';
+import DirtyState, { DIRTY } from '../core/dirty-state.js';
 
 export class PropertyPanel {
     constructor(editor) {
@@ -17,18 +19,25 @@ export class PropertyPanel {
 
         this._bindEvents();
         this._render();
+        this._registerPipeline();
+    }
+
+    _registerPipeline() {
+        RenderPipeline.on('pipeline-property', () => this._render());
     }
 
     /** Bind events */
     _bindEvents() {
         eventBus.on('element:selected', (el) => {
             this.selectedElement = el;
+            DirtyState.mark(DIRTY.PROPERTIES);
             this._updateValues();
         });
 
         eventBus.on('selection:changed', (elements) => {
             if (elements.length === 1) {
                 this.selectedElement = elements[0];
+                DirtyState.mark(DIRTY.PROPERTIES);
                 this._updateValues();
             } else if (elements.length === 0) {
                 this.selectedElement = null;
@@ -46,12 +55,14 @@ export class PropertyPanel {
 
         eventBus.on('element:updated', (el) => {
             if (el === this.selectedElement) {
+                DirtyState.mark(DIRTY.PROPERTIES);
                 this._updateValues();
             }
         });
 
         eventBus.on('element:transform', (el) => {
             if (el === this.selectedElement) {
+                DirtyState.mark(DIRTY.PROPERTIES);
                 this._updateValues();
             }
         });
@@ -60,7 +71,10 @@ export class PropertyPanel {
             if (this.responsiveTab) {
                 this.responsiveTab.showBreakpointBadge(bp);
             }
-            if (this.selectedElement) this._updateValues();
+            if (this.selectedElement) {
+                DirtyState.mark(DIRTY.PROPERTIES);
+                this._updateValues();
+            }
         });
 
         eventBus.on('page:switched', () => {
@@ -72,6 +86,16 @@ export class PropertyPanel {
     /** Render panel content */
     _render() {
         this.panel.innerHTML = '';
+
+        const section = document.createElement('div');
+        section.className = 'panel-section';
+
+        const header = document.createElement('div');
+        header.className = 'panel-section-header';
+        header.innerHTML = 'Properties <span class="arrow">▼</span>';
+
+        const body = document.createElement('div');
+        body.className = 'panel-section-body';
 
         this.layoutTab = createLayoutTab({ editor: this.editor, eventBus });
         this.spacingTab = createSpacingTab({ editor: this.editor, eventBus });
@@ -95,11 +119,20 @@ export class PropertyPanel {
         orderedTabs.forEach(tab => {
             const sections = Array.isArray(tab.sections) ? tab.sections : [tab.section];
             sections.forEach(section => {
-                this.panel.appendChild(section);
+                body.appendChild(section);
             });
         });
 
-        this.panel.appendChild(this.responsiveTab.cssSection);
+        body.appendChild(this.responsiveTab.cssSection);
+
+        header.addEventListener('click', () => {
+            header.classList.toggle('collapsed');
+            body.classList.toggle('collapsed');
+        });
+
+        section.appendChild(header);
+        section.appendChild(body);
+        this.panel.appendChild(section);
     }
 
     /** Update values from selected element */

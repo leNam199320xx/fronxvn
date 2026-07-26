@@ -13,6 +13,8 @@ import { QUALITY_SCAN_DELAY } from '../config.js';
  * @property {Function|null} autofix
  */
 
+import debug from '../debug.js';
+
 export class QualityEngine {
     constructor(editor) {
         this.editor = editor;
@@ -49,6 +51,7 @@ export class QualityEngine {
     }
 
     _scheduleScan() {
+        debug.action('quality', 'scheduleScan', { delay: this._scanDelay });
         clearTimeout(this._scanTimer);
         this._scanTimer = setTimeout(() => this._runScan(), this._scanDelay);
     }
@@ -58,6 +61,7 @@ export class QualityEngine {
     // ─────────────────────────────────────────────
 
     _runScan() {
+        debug.action('quality', 'runScan');
         const issues = runScan(this.editor, eventBus);
         const report = buildReport(issues);
 

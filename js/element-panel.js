@@ -3,16 +3,16 @@
  * Click để thêm vào phần tử đang chọn hoặc canvas
  */
 import eventBus from './event-bus.js';
+import CanvasAPI from './canvas/canvas-api.js';
 import { generateElementId } from './core/ids.js';
 
 export class ElementPanel {
     constructor(editor) {
         this.editor = editor;
-        this.container = document.querySelector('[data-tab-content="elements"]');
+        this.container = document.querySelector('#panel-right');
         this.selectedElement = null;
 
         this._bindEvents();
-        this._render();
     }
 
     /** Bind events */
@@ -60,6 +60,18 @@ export class ElementPanel {
 
     /** Render element library */
     _render() {
+        this.container.innerHTML = '';
+
+        const section = document.createElement('div');
+        section.className = 'panel-section';
+
+        const header = document.createElement('div');
+        header.className = 'panel-section-header';
+        header.innerHTML = 'Elements <span class="arrow">▼</span>';
+
+        const body = document.createElement('div');
+        body.className = 'panel-section-body';
+
         const grid = document.createElement('div');
         grid.className = 'element-library-grid';
 
@@ -72,7 +84,16 @@ export class ElementPanel {
             grid.appendChild(el);
         });
 
-        this.container.appendChild(grid);
+        body.appendChild(grid);
+
+        header.addEventListener('click', () => {
+            header.classList.toggle('collapsed');
+            body.classList.toggle('collapsed');
+        });
+
+        section.appendChild(header);
+        section.appendChild(body);
+        this.container.appendChild(section);
     }
 
     /** Thêm element vào canvas */
@@ -111,7 +132,7 @@ export class ElementPanel {
 
     /** Tạo DOM element */
     _createElement(item) {
-        const el = document.createElement(item.tag);
+        const el = CanvasAPI.createElement(item.tag);
         el.setAttribute('data-editor-element', '');
         el.dataset.type = item.type;
 
@@ -168,7 +189,7 @@ export class ElementPanel {
                 el.style.display = 'flex';
                 el.style.flexDirection = 'column';
                 // Header
-                const cardHeader = document.createElement('div');
+                const cardHeader = CanvasAPI.createElement('div');
                 cardHeader.style.cssText = 'padding: 16px; border-bottom: 1px solid #e0e0e0; font-weight: 600; font-size: 16px;';
                 cardHeader.textContent = 'Card Header';
                 cardHeader.setAttribute('data-editor-element', '');
@@ -177,7 +198,7 @@ export class ElementPanel {
                 cardHeader.dataset.container = 'true';
                 cardHeader.style.position = 'relative';
                 // Body
-                const cardBody = document.createElement('div');
+                const cardBody = CanvasAPI.createElement('div');
                 cardBody.style.cssText = 'padding: 16px; flex: 1; font-size: 14px; color: #555;';
                 cardBody.textContent = 'Card body content goes here. You can add any content inside.';
                 cardBody.setAttribute('data-editor-element', '');
@@ -186,7 +207,7 @@ export class ElementPanel {
                 cardBody.dataset.container = 'true';
                 cardBody.style.position = 'relative';
                 // Footer
-                const cardFooter = document.createElement('div');
+                const cardFooter = CanvasAPI.createElement('div');
                 cardFooter.style.cssText = 'padding: 12px 16px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999;';
                 cardFooter.textContent = 'Card Footer';
                 cardFooter.setAttribute('data-editor-element', '');
@@ -278,12 +299,12 @@ export class ElementPanel {
                 cbWrapper.style.gap = '8px';
                 cbWrapper.style.fontSize = '14px';
                 // Thay tag input bằng div wrapper
-                const cb = document.createElement('input');
+                const cb = CanvasAPI.createElement('input');
                 cb.type = 'checkbox';
                 cb.style.width = '16px';
                 cb.style.height = '16px';
                 cb.style.margin = '0';
-                const cbLabel = document.createElement('span');
+                const cbLabel = CanvasAPI.createElement('span');
                 cbLabel.textContent = 'Checkbox label';
                 cbLabel.style.color = '#333';
                 el.appendChild(cb);
@@ -299,12 +320,12 @@ export class ElementPanel {
                 rdWrapper.style.alignItems = 'center';
                 rdWrapper.style.gap = '8px';
                 rdWrapper.style.fontSize = '14px';
-                const rd = document.createElement('input');
+                const rd = CanvasAPI.createElement('input');
                 rd.type = 'radio';
                 rd.style.width = '16px';
                 rd.style.height = '16px';
                 rd.style.margin = '0';
-                const rdLabel = document.createElement('span');
+                const rdLabel = CanvasAPI.createElement('span');
                 rdLabel.textContent = 'Radio label';
                 rdLabel.style.color = '#333';
                 el.appendChild(rd);
@@ -317,10 +338,10 @@ export class ElementPanel {
                 el.style.borderCollapse = 'collapse';
                 el.style.fontSize = '14px';
                 // Tạo bảng mẫu 3 cột x 4 dòng (1 header + 3 body)
-                const thead = document.createElement('thead');
-                const headerRow = document.createElement('tr');
+                const thead = CanvasAPI.createElement('thead');
+                const headerRow = CanvasAPI.createElement('tr');
                 for (let c = 1; c <= 3; c++) {
-                    const th = document.createElement('th');
+                    const th = CanvasAPI.createElement('th');
                     th.textContent = `Header ${c}`;
                     th.style.cssText = 'padding: 10px 12px; border: 1px solid #ddd; background: #f5f5f5; font-weight: 600; text-align: left;';
                     headerRow.appendChild(th);
@@ -328,11 +349,11 @@ export class ElementPanel {
                 thead.appendChild(headerRow);
                 el.appendChild(thead);
 
-                const tbody = document.createElement('tbody');
+                const tbody = CanvasAPI.createElement('tbody');
                 for (let r = 1; r <= 3; r++) {
-                    const row = document.createElement('tr');
+                    const row = CanvasAPI.createElement('tr');
                     for (let c = 1; c <= 3; c++) {
-                        const td = document.createElement('td');
+                        const td = CanvasAPI.createElement('td');
                         td.textContent = `Row ${r}, Col ${c}`;
                         td.style.cssText = 'padding: 8px 12px; border: 1px solid #ddd;';
                         row.appendChild(td);
@@ -352,7 +373,7 @@ export class ElementPanel {
                 // 3 item mẫu có style
                 const items = ['List Item 1', 'List Item 2', 'List Item 3'];
                 items.forEach((text, i) => {
-                    const li = document.createElement('li');
+                    const li = CanvasAPI.createElement('li');
                     li.textContent = text;
                     li.style.cssText = `padding: 10px 16px; border-bottom: 1px solid #eee; color: #333;${i === 0 ? ' background: #f8f9fa;' : ''}`;
                     el.appendChild(li);

@@ -9,10 +9,9 @@ import { COMPONENT_INSERT_BASE_X, COMPONENT_INSERT_BASE_Y, COMPONENT_INSERT_RAND
 export class ComponentPanel {
     constructor(editor) {
         this.editor     = editor;
-        this.container  = document.querySelector('[data-tab-content="components"]');
+        this.container  = document.querySelector('#panel-right');
         this._components = [];
 
-        this._render();
         this._bindEvents();
     }
 
@@ -35,19 +34,29 @@ export class ComponentPanel {
         if (!this.container) return;
         this.container.innerHTML = '';
 
-        // ── Header ───────────────────────────────────────────────────────────
+        const section = document.createElement('div');
+        section.className = 'panel-section';
+
         const header = document.createElement('div');
-        header.className = 'comp-panel-header';
-        header.innerHTML = `
+        header.className = 'panel-section-header';
+        header.innerHTML = 'Components <span class="arrow">▼</span>';
+
+        const body = document.createElement('div');
+        body.className = 'panel-section-body';
+
+        // ── Header ───────────────────────────────────────────────────────────
+        const compHeader = document.createElement('div');
+        compHeader.className = 'comp-panel-header';
+        compHeader.innerHTML = `
             <span class="comp-panel-title">Components <span class="comp-count">${this._components.length}</span></span>
             <button class="comp-save-btn" title="Save selected elements as component">+ Save</button>
         `;
-        header.querySelector('.comp-save-btn').addEventListener('click', () => {
+        compHeader.querySelector('.comp-save-btn').addEventListener('click', () => {
             const name = prompt('Component name:', `Component ${this._components.length + 1}`);
             if (name === null) return; // cancelled
             this.editor.componentManager.saveComponent(name || '');
         });
-        this.container.appendChild(header);
+        body.appendChild(compHeader);
 
         // ── Empty state ───────────────────────────────────────────────────────
         if (this._components.length === 0) {
@@ -58,19 +67,27 @@ export class ComponentPanel {
                 <p>No components yet</p>
                 <small>Select elements on canvas, then click "+ Save"</small>
             `;
-            this.container.appendChild(empty);
-            return;
+            body.appendChild(empty);
+        } else {
+            // ── Grid ─────────────────────────────────────────────────────────────
+            const grid = document.createElement('div');
+            grid.className = 'comp-grid';
+
+            this._components.forEach(def => {
+                grid.appendChild(this._buildCard(def));
+            });
+
+            body.appendChild(grid);
         }
 
-        // ── Grid ─────────────────────────────────────────────────────────────
-        const grid = document.createElement('div');
-        grid.className = 'comp-grid';
-
-        this._components.forEach(def => {
-            grid.appendChild(this._buildCard(def));
+        header.addEventListener('click', () => {
+            header.classList.toggle('collapsed');
+            body.classList.toggle('collapsed');
         });
 
-        this.container.appendChild(grid);
+        section.appendChild(header);
+        section.appendChild(body);
+        this.container.appendChild(section);
     }
 
     /**

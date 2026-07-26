@@ -1,7 +1,8 @@
 import { generateElementId } from './ids.js';
+import CanvasAPI from '../canvas/canvas-api.js';
 
 export function deserializeElement(data) {
-    const el = document.createElement(data.tag || 'div');
+    const el = CanvasAPI.createElement(data.tag || 'div');
     el.setAttribute('data-editor-element', '');
     el.id = data.id || generateElementId();
 
@@ -33,8 +34,8 @@ export function deserializeElement(data) {
         });
     }
 
-    if (data.text && (!data.children || data.children.length === 0)) {
-        el.innerHTML = data.text;
+    if (data.innerHTML && (!data.children || data.children.length === 0)) {
+        el.innerHTML = data.innerHTML;
     }
 
     if (data.children) {

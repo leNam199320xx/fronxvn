@@ -9,6 +9,8 @@
  */
 import eventBus from './event-bus.js';
 
+import debug from './debug.js';
+
 export class Alignment {
     constructor(editor) {
         this.editor = editor;
@@ -58,6 +60,7 @@ export class Alignment {
     /** Căn chỉnh */
     align(direction) {
         const elements = this.editor.selection.getSelectedAll();
+        debug.action('alignment', `align ${direction}`, { count: elements.length });
         if (elements.length === 0) return;
 
         if (elements.length === 1) {

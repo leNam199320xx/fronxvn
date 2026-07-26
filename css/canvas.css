@@ -1,0 +1,47 @@
+/* ===== Element Library ===== */
+.element-library {
+    padding: 8px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.element-library-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+
+.element-library-item {
+    padding: 8px 4px;
+    text-align: center;
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all var(--transition);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.element-library-item:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.element-library-item.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.element-library-item .el-icon {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 16px;
+}
+
+/* ===== Canvas Elements ===== */
+/* Position được quản lý hoàn toàn bởi JS — không set cứng ở đây */
+.canvas [data-editor-element] {
+    cursor: default;
+    user-select: none;
+}

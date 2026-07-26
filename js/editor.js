@@ -3,6 +3,11 @@
  * Quản lý Canvas: grid, scroll, zoom, tọa độ chuột
  */
 import eventBus from './event-bus.js';
+import CanvasAPI from './canvas/canvas-api.js';
+import CoordinateSystem from './canvas/coordinate.js';
+import RenderScheduler, { PRIORITY } from './core/render-scheduler.js';
+import Benchmark from './core/benchmark.js';
+import RenderProfiler from './core/render-profiler.js';
 import {
     ZOOM_DEFAULT, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP,
     GRID_SIZE, GRID_ENABLED_DEFAULT,
@@ -36,13 +41,14 @@ import { QualityPanel } from './quality-panel.js';
 import { ComponentManager } from './components/index.js';
 import { ComponentPanel } from './component-panel.js';
 import { ThemeManager } from './theme-manager.js';
+import { showNotification } from './ui/toast.js';
 
 class Editor {
     constructor() {
         // DOM references
         this.canvasWrapper = document.getElementById('canvas-wrapper');
         this.canvasContainer = document.getElementById('canvas-container');
-        this.canvas = document.getElementById('canvas');
+        this.canvas = CanvasAPI.getRoot();
         this.overlayLayer = document.getElementById('overlay-layer');
         this.coordsDisplay = document.getElementById('coords-display');
         this.zoomDisplay = document.getElementById('zoom-display');
@@ -74,9 +80,10 @@ class Editor {
         // Khởi tạo
         this._initCanvas();
         this._initToolbar();
-        this._initTabs();
         this._initModules();
+        this._initTabs();
         this._bindEvents();
+        this._initProjectName();
 
         // Căn giữa canvas sau khi tất cả modules load xong
         requestAnimationFrame(() => {
@@ -186,6 +193,25 @@ class Editor {
         document.getElementById('btn-save').addEventListener('click', () => eventBus.emit('project:save'));
         document.getElementById('btn-load').addEventListener('click', () => eventBus.emit('project:load'));
 
+        // New Project
+        document.getElementById('btn-new-project').addEventListener('click', () => {
+            if (!confirm('Create new project? Unsaved changes will be lost.')) return;
+            const name = prompt('Project name:', 'My Project');
+            if (name === null) return;
+            const projectName = (name || 'My Project').trim();
+            this.projectManager.clearAutoSave();
+            this.history.clear();
+            this.pageManager.loadPages([]);
+            this.canvas.innerHTML = '';
+            this.projectMeta.title = projectName;
+            document.title = `${projectName} — HTML Visual Editor`;
+            eventBus.emit('selection:deselect-all');
+            eventBus.emit('overlay:clear');
+            eventBus.emit('layer:refresh');
+            eventBus.emit('project:meta-updated', { title: projectName });
+            showNotification(`New project "${projectName}" created.`);
+        });
+
         // Viewport / Breakpoint switcher
         const bpButtons = document.querySelectorAll('#viewport-switcher [data-bp]');
         const viewportLabel = document.getElementById('viewport-label');
@@ -197,39 +223,23 @@ class Editor {
                 viewportLabel.textContent = { desktop: 'Desktop', tablet: BREAKPOINT_LABEL_TABLET, mobile: BREAKPOINT_LABEL_MOBILE }[bp];
                 this.canvasWrapper.classList.remove('bp-tablet', 'bp-mobile');
                 if (bp !== 'desktop') this.canvasWrapper.classList.add(`bp-${bp}`);
+                this.canvas.classList.remove('bp-tablet', 'bp-mobile');
+                if (bp !== 'desktop') this.canvas.classList.add(`bp-${bp}`);
                 eventBus.emit('breakpoint:switch', bp);
             });
         });
-
-        // Panel toggles
-        const btnToggleLeft = document.getElementById('btn-toggle-left');
-        const btnToggleRight = document.getElementById('btn-toggle-right');
-        const panelLeft = document.getElementById('panel-left');
-        const panelRight = document.getElementById('panel-right');
-        const editorMain = document.querySelector('.editor-main');
-
-        if (btnToggleLeft && panelLeft) {
-            btnToggleLeft.addEventListener('click', () => {
-                panelLeft.classList.toggle('hidden');
-                btnToggleLeft.classList.toggle('active');
-            });
-        }
-
-        if (btnToggleRight && panelRight) {
-            btnToggleRight.addEventListener('click', () => {
-                panelRight.classList.toggle('hidden');
-                btnToggleRight.classList.toggle('active');
-            });
-        }
 
         // Listen for breakpoint changes (e.g. from other sources)
         eventBus.on('breakpoint:changed', (bp) => {
             bpButtons.forEach(b => b.classList.toggle('active', b.dataset.bp === bp));
             viewportLabel.textContent = { desktop: 'Desktop', tablet: BREAKPOINT_LABEL_TABLET, mobile: BREAKPOINT_LABEL_MOBILE }[bp];
+            this.canvas.classList.remove('bp-tablet', 'bp-mobile');
+            if (bp !== 'desktop') this.canvas.classList.add(`bp-${bp}`);
         });
 
         // Fullscreen
         const btnFullscreen = document.getElementById('btn-fullscreen');
+        const editorMain = document.querySelector('.editor-main');
         if (btnFullscreen) {
             btnFullscreen.addEventListener('click', () => {
                 if (!document.fullscreenElement) {
@@ -243,6 +253,173 @@ class Editor {
                 }
             });
         }
+
+        // Vertical toolbars
+        this._initVerticalToolbars();
+    }
+
+    /** Khởi tạo vertical icon toolbars + floating panels */
+    _initVerticalToolbars() {
+        const leftToolbar = document.getElementById('toolbar-left');
+        const rightToolbar = document.getElementById('toolbar-right');
+        const panelLeft = document.getElementById('panel-left');
+        const panelRight = document.getElementById('panel-right');
+
+        if (!leftToolbar || !rightToolbar) return;
+
+        const leftIcons = leftToolbar.querySelectorAll('.toolbar-icon');
+        const rightIcons = rightToolbar.querySelectorAll('.toolbar-icon');
+
+        const panelBody = panelRight;
+        const panelHeader = panelRight ? panelRight.querySelector('.panel-section-header') : null;
+
+        const renderers = {
+            elements: () => this.elementPanel._render(),
+            templates: () => this.templateManager._render(),
+            layers: () => this.layerPanel._render(),
+            theme: () => this.themeManager._render(),
+            quality: () => this.qualityPanel._render(),
+            components: () => this.componentPanel._render()
+        };
+
+        const switchRightPanel = (icons) => {
+            icons.forEach(icon => {
+                icon.addEventListener('click', () => {
+                    const isActive = icon.classList.contains('active');
+                    icons.forEach(i => i.classList.remove('active'));
+                    panelRight.classList.remove('visible');
+
+                    if (!isActive) {
+                        icon.classList.add('active');
+                        panelRight.classList.add('visible');
+                        const source = icon.dataset.panel;
+                        if (panelHeader && source) {
+                            const label = icon.getAttribute('title') || source;
+                            panelHeader.innerHTML = `${label} <span class="arrow">▼</span>`;
+                        }
+                        if (panelBody && renderers[source]) {
+                            panelBody.innerHTML = '';
+                            renderers[source]();
+                        }
+                        eventBus.emit('toolbar:panel:open', { panel: 'right', source: icon.dataset.panel });
+                    } else {
+                        eventBus.emit('toolbar:panel:close', { panel: 'right' });
+                    }
+                });
+            });
+        };
+
+        // Left toolbar: properties shows/hides left panel, layers/components open right panel
+        leftIcons.forEach(icon => {
+            icon.addEventListener('click', () => {
+                const panel = icon.dataset.panel;
+                if (panel === 'properties') {
+                    const isActive = icon.classList.contains('active');
+                    if (isActive) {
+                        icon.classList.remove('active');
+                        panelLeft.classList.remove('visible');
+                    } else {
+                        leftIcons.forEach(i => i.classList.remove('active'));
+                        icon.classList.add('active');
+                        panelLeft.classList.add('visible');
+                    }
+                } else if (renderers[panel]) {
+                    rightIcons.forEach(i => i.classList.remove('active'));
+                    icon.classList.add('active');
+                    panelRight.classList.add('visible');
+                    if (panelHeader) {
+                        const label = icon.getAttribute('title') || panel;
+                        panelHeader.innerHTML = `${label} <span class="arrow">▼</span>`;
+                    }
+                    if (panelBody) {
+                        panelBody.innerHTML = '';
+                        renderers[panel]();
+                    }
+                }
+            });
+        });
+
+        switchRightPanel(rightIcons);
+
+        // Sync initial visibility from active toolbar icons
+        const activeLeftIcon = leftToolbar.querySelector('.toolbar-icon.active');
+        if (activeLeftIcon) {
+            const panel = activeLeftIcon.dataset.panel;
+            if (panel === 'properties') {
+                panelLeft.classList.add('visible');
+            } else if (renderers[panel]) {
+                panelRight.classList.add('visible');
+                if (panelHeader) {
+                    panelHeader.innerHTML = `${activeLeftIcon.getAttribute('title') || panel} <span class="arrow">▼</span>`;
+                }
+                if (panelBody) {
+                    panelBody.innerHTML = '';
+                    renderers[panel]();
+                }
+            }
+        }
+
+        // Close panels when clicking canvas
+        eventBus.on('pointer:mousedown', () => {
+            leftIcons.forEach(i => i.classList.remove('active'));
+            rightIcons.forEach(i => i.classList.remove('active'));
+            panelLeft.classList.remove('visible');
+            panelRight.classList.remove('visible');
+        });
+    }
+
+    /** Hiển thị tên project trên toolbar, cho phép click để rename */
+    _initProjectName() {
+        const projectNameEl = document.getElementById('project-name');
+        if (!projectNameEl) return;
+
+        const updateName = (name) => {
+            projectNameEl.textContent = name || 'Untitled Project';
+            this.projectMeta.title = name || 'Untitled Project';
+            document.title = `${this.projectMeta.title} — HTML Visual Editor`;
+        };
+
+        updateName(this.projectMeta.title || 'My Project');
+
+        projectNameEl.addEventListener('click', () => {
+            const current = this.projectMeta.title || '';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'project-name-input';
+            input.value = current;
+            input.placeholder = 'Project name';
+
+            projectNameEl.replaceWith(input);
+            input.focus();
+            input.select();
+
+            const commit = () => {
+                const newName = input.value.trim() || 'Untitled Project';
+                updateName(newName);
+                eventBus.emit('project:meta-updated', { title: newName });
+                input.replaceWith(projectNameEl);
+                projectNameEl.textContent = newName;
+            };
+
+            input.addEventListener('blur', commit);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    input.blur();
+                }
+                if (e.key === 'Escape') {
+                    input.value = current;
+                    input.blur();
+                }
+            });
+        });
+
+        eventBus.on('project:meta-updated', (meta) => {
+            if (meta && meta.title) {
+                updateName(meta.title);
+                projectNameEl.textContent = meta.title;
+            }
+        });
     }
 
     /** Khởi tạo tab switching cho right panel */
@@ -256,33 +433,34 @@ class Editor {
                 tabs.forEach(t => t.classList.remove('active'));
                 contents.forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
-                document.querySelector(`[data-tab-content="${tabName}"]`).classList.add('active');
+                const target = document.querySelector(`[data-tab-content="${tabName}"]`);
+                if (target) target.classList.add('active');
+                eventBus.emit('tab:switch', tabName);
             });
         });
     }
 
     /** Bindcác sự kiện chính */
     _bindEvents() {
-        // Tọa độ chuột trên canvas
-        this.canvasWrapper.addEventListener('mousemove', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const x = Math.round((e.clientX - rect.left) / this.zoom);
-            const y = Math.round((e.clientY - rect.top) / this.zoom);
-            this.coordsDisplay.textContent = `X: ${x}  Y: ${y}`;
-            eventBus.emit('canvas:mousemove', { x, y, clientX: e.clientX, clientY: e.clientY });
+        eventBus.on('pointer:mousemove', (data) => {
+            const { x, y } = CoordinateSystem.mousePosition(data);
+            const rx = Math.round(x);
+            const ry = Math.round(y);
+            RenderScheduler.schedule('coords-display', () => {
+                this.coordsDisplay.textContent = `X: ${rx}  Y: ${ry}`;
+            }, PRIORITY.NORMAL);
+            eventBus.emit('canvas:mousemove', { x: rx, y: ry, clientX: data.clientX, clientY: data.clientY });
         });
 
-        // Zoom bằng Ctrl + Scroll
-        this.canvasWrapper.addEventListener('wheel', (e) => {
-            if (e.ctrlKey) {
-                e.preventDefault();
-                if (e.deltaY < 0) {
+        eventBus.on('wheel', (data) => {
+            if (data.ctrlKey) {
+                if (data.deltaY < 0) {
                     this.zoomIn();
                 } else {
                     this.zoomOut();
                 }
             }
-        }, { passive: false });
+        });
 
         // Scroll event
         this.canvasContainer.addEventListener('scroll', () => {
@@ -304,8 +482,8 @@ class Editor {
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 const t = e.target;
-                // Không kích hoạt khi đang focus vào input/textarea/contenteditable
-                if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
+                const iframeCE = e._isIframeContentEditable;
+                if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable || iframeCE) return;
                 e.preventDefault();
                 if (!this.isPanning) {
                     this.isPanning = true;
@@ -322,47 +500,39 @@ class Editor {
             }
         });
 
-        // Pan: mousedown trên canvasWrapper khi đang PanMode (Space) hoặc middle-click
-        this.canvasWrapper.addEventListener('mousedown', (e) => {
-            if (this.isPanning && e.button === 0) {
-                e.preventDefault();
-                e.stopPropagation();
+        eventBus.on('pointer:mousedown', (data) => {
+            if (this.isPanning && data.button === 0) {
                 this._panMouseActive = true;
-                this.panStartX = e.clientX;
-                this.panStartY = e.clientY;
+                this.panStartX = data.clientX;
+                this.panStartY = data.clientY;
                 this.canvasWrapper.style.cursor = 'grabbing';
             }
-            // Middle-click pan
-            if (e.button === 1) {
-                e.preventDefault();
+            if (data.button === 1) {
                 this.isPanning = true;
                 this._panMouseActive = true;
-                this.panStartX = e.clientX;
-                this.panStartY = e.clientY;
+                this.panStartX = data.clientX;
+                this.panStartY = data.clientY;
                 this.canvasWrapper.style.cursor = 'grabbing';
-            }
-        }, true); // capture phase để ưu tiên hơn drag handler
-
-        // Pan: mousemove trên document khi đang pan
-        document.addEventListener('mousemove', (e) => {
-            if (this._panMouseActive) {
-                const dx = e.clientX - this.panStartX;
-                const dy = e.clientY - this.panStartY;
-                this.canvasContainer.scrollLeft -= dx;
-                this.canvasContainer.scrollTop -= dy;
-                this.panStartX = e.clientX;
-                this.panStartY = e.clientY;
             }
         });
 
-        // Pan: mouseup trên document để kết thúc pan
-        document.addEventListener('mouseup', (e) => {
-            if (this._panMouseActive && e.button === 0) {
+        eventBus.on('pointer:mousemove', (data) => {
+            if (this._panMouseActive) {
+                const dx = data.clientX - this.panStartX;
+                const dy = data.clientY - this.panStartY;
+                this.canvasContainer.scrollLeft -= dx;
+                this.canvasContainer.scrollTop -= dy;
+                this.panStartX = data.clientX;
+                this.panStartY = data.clientY;
+            }
+        });
+
+        eventBus.on('pointer:mouseup', (data) => {
+            if (this._panMouseActive && data.button === 0) {
                 this._panMouseActive = false;
                 if (this.isPanning) this.canvasWrapper.style.cursor = 'grab';
             }
-            // Middle-click release
-            if (this._panMouseActive && e.button === 1) {
+            if (this._panMouseActive && data.button === 1) {
                 this.isPanning = false;
                 this._panMouseActive = false;
                 this.canvasWrapper.style.cursor = '';
@@ -374,7 +544,7 @@ class Editor {
     _handleKeydown(e) {
         const target = e.target;
         // Không xử lý khi đang focus input
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || e._isIframeContentEditable) {
             return;
         }
 
@@ -548,11 +718,7 @@ class Editor {
      * @returns {{x: number, y: number}}
      */
     getCanvasPoint(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        return {
-            x: (e.clientX - rect.left) / this.zoom,
-            y: (e.clientY - rect.top) / this.zoom
-        };
+        return CoordinateSystem.mousePosition(e);
     }
 
     /**
@@ -575,6 +741,9 @@ class Editor {
 }
 
 // Khởi tạo editor khi DOM ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await CanvasAPI.init();
     window.editor = new Editor();
+    window.benchmark = Benchmark;
+    window.profiler = RenderProfiler;
 });

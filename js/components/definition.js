@@ -1,4 +1,5 @@
 import eventBus from '../event-bus.js';
+import CanvasAPI from '../canvas/canvas-api.js';
 import { generateComponentId, findDef, collectBpStyles } from './utils.js';
 import { generateThumbnail } from './thumbnail.js';
 
@@ -8,7 +9,7 @@ export function create(components, elements, name) {
         return null;
     }
 
-    const tempDiv = document.createElement('div');
+    const tempDiv = CanvasAPI.createElement('div');
     elements.forEach(el => tempDiv.appendChild(el.cloneNode(true)));
 
     const bpStyles = collectBpStyles(elements);
@@ -42,7 +43,7 @@ export function updateFromInstance(components, componentId, selectedElement) {
     clone.removeAttribute('data-component-id');
     clone.removeAttribute('data-instance-id');
 
-    const tempDiv = document.createElement('div');
+    const tempDiv = CanvasAPI.createElement('div');
     tempDiv.appendChild(clone);
     def.html = tempDiv.innerHTML;
 

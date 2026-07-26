@@ -1,8 +1,10 @@
 import { findPage } from './utils.js';
 import { savePageData, restorePageData } from './page-storage.js';
 import { restoreHistoryFromPage } from './page-history.js';
+import debug from '../debug.js';
 
 export function switchPage(pages, activePageId, editor, eventBus, pageId) {
+    debug.action('page-switch', 'switchPage', { from: activePageId, to: pageId });
     if (pageId === activePageId) return pageId;
 
     const fromPage = findPage(pages, activePageId);

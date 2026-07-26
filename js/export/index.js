@@ -28,6 +28,8 @@ import {
     EXPORT_DOWNLOAD_BTN_COLOR
 } from '../config.js';
 
+import debug from '../debug.js';
+
 export class ExportManager {
     constructor(editor) {
         this.editor = editor;
@@ -43,6 +45,7 @@ export class ExportManager {
 
     /** Hiển thị dialog export */
     _showExportDialog() {
+        debug.action('export', 'showExportDialog');
         const textarea = document.createElement('textarea');
         textarea.style.cssText = `
             width: 100%; height: ${EXPORT_TEXTAREA_HEIGHT}; background: ${EXPORT_TEXTAREA_BG}; border: 1px solid ${EXPORT_TEXTAREA_BORDER};
@@ -128,6 +131,7 @@ export class ExportManager {
     }
 
     _switchExportTab(type, body, textarea, seoPanel) {
+        debug.action('export', 'switchExportTab', { type });
         if (type === 'seo') {
             textarea.style.display = 'none';
             seoPanel.style.display = 'block';
@@ -139,6 +143,7 @@ export class ExportManager {
     }
 
     _getExport(type) {
+        debug.action('export', 'getExport', { type });
         switch (type) {
             case 'html': return this.exportHTML();
             case 'css':  return this.exportCSS();
