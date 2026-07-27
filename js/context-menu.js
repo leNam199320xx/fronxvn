@@ -20,7 +20,6 @@ export class ContextMenu {
 
     /** Tạo menu items */
     _buildMenu() {
-        // items với id để cập nhật label động
         this._items = [
             { id: 'copy',          label: 'Copy',              shortcut: 'Ctrl+C',       action: 'clipboard:copy' },
             { id: 'paste',         label: 'Paste',             shortcut: 'Ctrl+V',       action: 'clipboard:paste' },
@@ -87,7 +86,6 @@ export class ContextMenu {
         if (lockItem) lockItem.textContent = el.dataset.locked === 'true' ? 'Unlock' : 'Lock';
         if (hideItem) hideItem.textContent = el.dataset.hidden === 'true' ? 'Show' : 'Hide';
 
-        // "Detach Instance" chỉ hiện khi element là component instance
         if (detachItem) {
             const isInstance = !!el.dataset.componentId;
             detachItem.style.display = isInstance ? '' : 'none';
@@ -100,27 +98,35 @@ export class ContextMenu {
 
     /** Bind events */
     _bindEvents() {
-        // Right click trên canvas
+        this._bindShowHideEvents();
+        this._bindZOrderEvents();
+        this._bindLockEvents();
+        this._bindVisibilityToggleEvents();
+        this._bindMenuHideEvents();
+        this._bindWrapEvent();
+    }
+
+    _bindShowHideEvents() {
         eventBus.on('pointer:contextmenu', (data) => {
             const el = CanvasAPI.closest(data.target, '[data-editor-element]');
             this._updateDynamicLabels(el);
             this._show(data.clientX, data.clientY);
         });
+    }
 
-        // Ẩn menu khi click ngoài
+    _bindHideEvents() {
         document.addEventListener('mousedown', (e) => {
             if (!this.menu.contains(e.target)) {
                 this._hide();
             }
         });
 
-        // Ẩn khi scroll
         document.addEventListener('scroll', () => this._hide(), true);
 
-        // Ẩn khi tab context menu của page-manager gọi
         eventBus.on('context-menu:hide', () => this._hide());
+    }
 
-        // ── Z-order ─────────────────────────────────────────────────────────
+    _bindZOrderEvents() {
         eventBus.on('element:bring-front', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
                 CanvasAPI.append(el, el.parentNode);
@@ -162,8 +168,9 @@ export class ContextMenu {
             });
             eventBus.emit('layer:refresh');
         });
+    }
 
-        // ── Lock/Unlock toggle ───────────────────────────────────────────────
+    _bindLockEvents() {
         eventBus.on('element:lock-toggle', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
                 if (CanvasAPI.getAttribute(el, 'data-locked') === 'true') {
@@ -178,7 +185,6 @@ export class ContextMenu {
             eventBus.emit('layer:refresh');
         });
 
-        // Backward compat
         eventBus.on('element:lock', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
                 CanvasAPI.setAttribute(el, 'data-locked', 'true');
@@ -186,6 +192,7 @@ export class ContextMenu {
                 eventBus.emit('element:updated', el);
             });
         });
+
         eventBus.on('element:unlock', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
                 CanvasAPI.removeAttribute(el, 'data-locked');
@@ -193,8 +200,9 @@ export class ContextMenu {
                 eventBus.emit('element:updated', el);
             });
         });
+    }
 
-        // ── Hide/Show toggle ─────────────────────────────────────────────────
+    _bindVisibilityToggleEvents() {
         eventBus.on('element:hide-toggle', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
                 if (CanvasAPI.getAttribute(el, 'data-hidden') === 'true') {
@@ -212,7 +220,6 @@ export class ContextMenu {
             eventBus.emit('layer:refresh');
         });
 
-        // Backward compat
         eventBus.on('element:hide', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
                 if (CanvasAPI.getAttribute(el, 'data-hidden') !== 'true') {
@@ -224,6 +231,7 @@ export class ContextMenu {
             });
             eventBus.emit('layer:refresh');
         });
+
         eventBus.on('element:show', () => {
             this.editor.selection.getSelectedAll().forEach(el => {
                 if (CanvasAPI.getAttribute(el, 'data-hidden') === 'true') {
@@ -236,13 +244,13 @@ export class ContextMenu {
             });
             eventBus.emit('layer:refresh');
         });
+    }
 
-        // ── Wrap in Container ────────────────────────────────────────────────
+    _bindWrapEvent() {
         eventBus.on('element:wrap', () => {
             const elements = this.editor.selection.getSelectedAll();
             if (elements.length === 0) return;
 
-            // Tính bounding box của tất cả elements được chọn
             let minLeft = Infinity, minTop = Infinity;
             let maxRight = -Infinity, maxBottom = -Infinity;
 
@@ -259,7 +267,6 @@ export class ContextMenu {
 
             const parent = elements[0].parentNode;
 
-            // Tạo container
             const container = CanvasAPI.create('div', {
                 'data-editor-element': '',
                 id: generateElementId(),
@@ -273,10 +280,8 @@ export class ContextMenu {
             CanvasAPI.setStyle(container, 'width', (maxRight - minLeft) + 'px');
             CanvasAPI.setStyle(container, 'height', (maxBottom - minTop) + 'px');
 
-            // Chèn container vào DOM tại vị trí của element đầu tiên
             CanvasAPI.insertBefore(container, elements[0], parent);
 
-            // Di chuyển các elements vào container (offset lại tọa độ)
             elements.forEach(el => {
                 const left = (parseFloat(CanvasAPI.getStyle(el, 'left')) || 0) - minLeft;
                 const top  = (parseFloat(CanvasAPI.getStyle(el, 'top'))  || 0) - minTop;
@@ -298,7 +303,6 @@ export class ContextMenu {
         this.menu.style.top = y + 'px';
         this.menu.classList.add('visible');
 
-        // Đảm bảo menu không vượt viewport
         const rect = CanvasAPI.getElementRect(this.menu);
         if (rect.right > window.innerWidth) {
             this.menu.style.left = (x - rect.width) + 'px';

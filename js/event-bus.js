@@ -63,11 +63,12 @@ export class EventBus {
         if(event != "canvas:mousemove" && event != "canvas:mouseup" && event != "canvas:mousedown") {
             debug.action('event-bus', `emit ${event}`, args.length > 0 ? args[0] : undefined);
         }
-        if (!this._listeners[event]) return;
-        const listeners = [...this._listeners[event]];
-        listeners.forEach(listener => {
+        const listeners = this._listeners[event];
+        if (!listeners || listeners.length === 0) return;
+        for (let i = 0; i < listeners.length; i++) {
+            const listener = listeners[i];
             listener.callback.apply(listener.context, args);
-        });
+        }
     }
 
     /**

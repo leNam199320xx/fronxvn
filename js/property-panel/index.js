@@ -16,6 +16,7 @@ export class PropertyPanel {
         this.editor = editor;
         this.panel = document.getElementById('panel-left');
         this.selectedElement = null;
+        this._propInputs = null;
 
         this._bindEvents();
         this._render();
@@ -133,6 +134,8 @@ export class PropertyPanel {
         section.appendChild(header);
         section.appendChild(body);
         this.panel.appendChild(section);
+
+        this._propInputs = this.panel.querySelectorAll('[data-prop]');
     }
 
     /** Update values from selected element */
@@ -142,10 +145,12 @@ export class PropertyPanel {
         const notice = this.panel.querySelector('.multi-select-notice');
         if (notice) notice.remove();
 
-        this.panel.querySelectorAll('[data-prop]').forEach(input => {
-            input.disabled = false;
-            input.placeholder = input.dataset.placeholder || '';
-        });
+        if (this._propInputs) {
+            this._propInputs.forEach(input => {
+                input.disabled = false;
+                input.placeholder = input.dataset.placeholder || '';
+            });
+        }
 
         [
             this.layoutTab,
@@ -171,14 +176,16 @@ export class PropertyPanel {
         const notice = this.panel.querySelector('.multi-select-notice');
         if (notice) notice.remove();
 
-        this.panel.querySelectorAll('[data-prop]').forEach(input => {
-            input.disabled = false;
-            if (input.type === 'color') {
-                input.value = DEFAULT_COLOR_FALLBACK;
-            } else {
-                input.value = '';
-            }
-        });
+        if (this._propInputs) {
+            this._propInputs.forEach(input => {
+                input.disabled = false;
+                if (input.type === 'color') {
+                    input.value = DEFAULT_COLOR_FALLBACK;
+                } else {
+                    input.value = '';
+                }
+            });
+        }
     }
 
     /** Update CSS editor textarea when element changes */
@@ -192,11 +199,13 @@ export class PropertyPanel {
     _showMultiSelectPlaceholder(count) {
         const existing = this.panel.querySelector('.multi-select-notice');
         if (!existing) {
-            this.panel.querySelectorAll('[data-prop]').forEach(input => {
-                input.value = '';
-                input.placeholder = '—';
-                input.disabled = true;
-            });
+            if (this._propInputs) {
+                this._propInputs.forEach(input => {
+                    input.value = '';
+                    input.placeholder = '—';
+                    input.disabled = true;
+                });
+            }
             const notice = document.createElement('div');
             notice.className = 'multi-select-notice';
             notice.style.cssText = `

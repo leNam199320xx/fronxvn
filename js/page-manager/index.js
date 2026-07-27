@@ -15,7 +15,7 @@ import {
 } from './page-storage.js';
 import { saveHistoryToPage, restoreHistoryFromPage } from './page-history.js';
 import { restorePageFromSnapshot, generatePageId } from './utils.js';
-import { clearCanvas } from './page-render.js';
+import { clearCanvas } from './page-storage.js';
 
 import debug from '../debug.js';
 

@@ -15,6 +15,7 @@
  * Export vào style.css đầu file dưới dạng :root { --token: value; }
  */
 import eventBus from './event-bus.js';
+import { toHex } from './core/color.js';
 
 /** Default token values */
 export const THEME_DEFAULTS = {
@@ -295,7 +296,7 @@ export class ThemeManager {
             const swatch = document.createElement('input');
             swatch.type  = 'color';
             swatch.className = 'theme-color-swatch';
-            swatch.value = this._toHex(value);
+            swatch.value = toHex(value);
 
             const text = document.createElement('input');
             text.type  = 'text';
@@ -314,7 +315,7 @@ export class ThemeManager {
                 if (v) {
                     this._setToken(token.key, v);
                     // Try to update swatch if valid hex
-                    const hex = this._toHex(v);
+                    const hex = toHex(v);
                     if (hex) swatch.value = hex;
                 }
             });
@@ -380,30 +381,6 @@ export class ThemeManager {
     // ─────────────────────────────────────────────
     //  Helpers
     // ─────────────────────────────────────────────
-
-    /**
-     * Chuyển CSS color string sang hex (best effort).
-     * @param {string} color
-     * @returns {string}
-     */
-    _toHex(color) {
-        if (!color) return '#000000';
-        if (/^#[0-9a-fA-F]{3,6}$/.test(color)) return color.length === 4
-            ? '#' + color[1]+color[1]+color[2]+color[2]+color[3]+color[3]
-            : color;
-        // rgb/rgba → hex via canvas trick
-        try {
-            const tmp = document.createElement('canvas');
-            tmp.width = tmp.height = 1;
-            const ctx = tmp.getContext('2d');
-            ctx.fillStyle = color;
-            ctx.fillRect(0, 0, 1, 1);
-            const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-            return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
-        } catch {
-            return '#000000';
-        }
-    }
 
     _bindEvents() {
         // Auto-save khi theme thay đổi

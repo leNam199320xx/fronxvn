@@ -5,6 +5,7 @@
  */
 import eventBus from './event-bus.js';
 import { QUALITY_SCORE_INITIAL, QUALITY_RESCAN_AFTER_FIX_DELAY, QUALITY_SCORE_GOOD, QUALITY_SCORE_WARN } from './config.js';
+import { escapeHtml } from '../export/utils.js';
 import RenderPipeline from '../core/render-pipeline.js';
 
 const SEVERITY_ICON  = { error: '🔴', warning: '🟡', info: '🔵' };
@@ -140,8 +141,8 @@ export class QualityPanel {
             <div class="quality-issue-main">
                 <span class="quality-issue-icon">${icon}</span>
                 <div class="quality-issue-body">
-                    <div class="quality-issue-message">${this._escapeHtml(issue.message)}</div>
-                    <div class="quality-issue-suggestion">${this._escapeHtml(issue.suggestion)}</div>
+                    <div class="quality-issue-message">${escapeHtml(issue.message)}</div>
+                    <div class="quality-issue-suggestion">${escapeHtml(issue.suggestion)}</div>
                 </div>
             </div>
             <div class="quality-issue-actions"></div>
@@ -229,11 +230,5 @@ export class QualityPanel {
             }
         });
     }
-
-    _escapeHtml(str) {
-        return String(str || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
 }
+

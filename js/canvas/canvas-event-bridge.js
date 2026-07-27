@@ -4,13 +4,12 @@
  * Keyboard events continue dispatching to the iframe for contentEditable support.
  */
 import eventBus from '../event-bus.js';
-import CanvasAPI from './canvas-api.js';
 import CanvasDiagnostics from './canvas-diagnostics.js';
 
 const SUPPORTS_POINTER = typeof window !== 'undefined' && 'PointerEvent' in window;
 
-function normalizePointer(e) {
-    const { left, top } = CanvasAPI.getIframeRect();
+function normalizePointer(e, getIframeRect) {
+    const { left, top } = getIframeRect();
     return {
         clientX: e.clientX + left,
         clientY: e.clientY + top,
@@ -31,10 +30,12 @@ function normalizePointer(e) {
 }
 
 export class CanvasEventBridge {
-    constructor(iframe, doc, win) {
+    constructor(iframe, doc, win, getIframeRect) {
         this._iframe = iframe;
         this._doc = doc;
         this._win = win;
+        this._getIframeRect = getIframeRect;
+        this._handlers = new Map();
     }
 
     init() {
@@ -46,28 +47,46 @@ export class CanvasEventBridge {
         this._bindFocusEvents();
     }
 
+    /** Remove all bound event listeners. */
+    destroy() {
+        if (!this._doc || !this._win) return;
+        for (const [, handlerData] of this._handlers) {
+            const [target, type, handler] = handlerData;
+            target.removeEventListener(type, handler);
+        }
+        this._handlers.clear();
+    }
+
+    _addHandler(target, type, handler) {
+        this._handlers.set(handler, [target, type, handler]);
+        target.addEventListener(type, handler);
+    }
+
     _bindPointerEvents() {
         const map = SUPPORTS_POINTER
             ? { pointerdown: 'pointerdown', pointermove: 'pointermove', pointerup: 'pointerup', pointercancel: 'pointercancel' }
             : { mousedown: 'mousedown', mousemove: 'mousemove', mouseup: 'mouseup', dragstart: 'dragstart', dragend: 'dragend' };
 
+        const emitPointer = (type) => (e) => this._emitPointer(type, e);
+        const emitParentPointer = (type) => (e) => this._emitParentPointer(type, e);
+
         Object.entries(map).forEach(([source, type]) => {
-            this._doc.addEventListener(source, (e) => this._emitPointer(type, e));
+            this._addHandler(this._doc, source, emitPointer(type));
         });
 
         if (SUPPORTS_POINTER) {
-            this._win.document.addEventListener('pointermove', (e) => this._emitParentPointer('pointermove', e));
-            this._win.document.addEventListener('pointerup', (e) => this._emitParentPointer('pointerup', e));
-            this._win.document.addEventListener('pointercancel', (e) => this._emitParentPointer('pointercancel', e));
+            this._addHandler(this._win.document, 'pointermove', emitParentPointer('pointermove'));
+            this._addHandler(this._win.document, 'pointerup', emitParentPointer('pointerup'));
+            this._addHandler(this._win.document, 'pointercancel', emitParentPointer('pointercancel'));
         } else {
-            this._win.document.addEventListener('mousemove', (e) => this._emitParentPointer('mousemove', e));
-            this._win.document.addEventListener('mouseup', (e) => this._emitParentPointer('mouseup', e));
+            this._addHandler(this._win.document, 'mousemove', emitParentPointer('mousemove'));
+            this._addHandler(this._win.document, 'mouseup', emitParentPointer('mouseup'));
         }
     }
 
     _emitPointer(type, e) {
         CanvasDiagnostics.trackEventBridgeEvent();
-        const data = normalizePointer(e);
+        const data = normalizePointer(e, this._getIframeRect);
         data.type = type;
         eventBus.emit('pointer:' + type, data);
     }
@@ -95,22 +114,24 @@ export class CanvasEventBridge {
     }
 
     _bindContextMenu() {
-        this._doc.addEventListener('contextmenu', (e) => {
+        const handler = (e) => {
             e.preventDefault();
             CanvasDiagnostics.trackEventBridgeEvent();
-            const data = normalizePointer(e);
+            const data = normalizePointer(e, this._getIframeRect);
             data.type = 'contextmenu';
             eventBus.emit('pointer:contextmenu', data);
-        });
+        };
+        this._addHandler(this._doc, 'contextmenu', handler);
+        this._emitContextMenu = handler;
     }
 
     _bindWheelEvent() {
-        this._doc.addEventListener('wheel', (e) => {
+        const handler = (e) => {
             if (e.ctrlKey) {
                 e.preventDefault();
             }
             CanvasDiagnostics.trackEventBridgeEvent();
-            const { left, top } = CanvasAPI.getIframeRect();
+            const { left, top } = this._getIframeRect();
             eventBus.emit('wheel', {
                 clientX: e.clientX + left,
                 clientY: e.clientY + top,
@@ -124,7 +145,9 @@ export class CanvasEventBridge {
                 altKey: e.altKey,
                 target: e.target
             });
-        });
+        };
+        this._addHandler(this._doc, 'wheel', handler);
+        this._emitWheel = handler;
     }
 
     _bindKeyboardEvents() {
@@ -151,20 +174,27 @@ export class CanvasEventBridge {
             }
         };
 
-        this._win.addEventListener('keydown', forward('keydown'));
-        this._win.addEventListener('keyup', forward('keyup'));
+        const keydownHandler = forward('keydown');
+        const keyupHandler = forward('keyup');
+        this._addHandler(this._win, 'keydown', keydownHandler);
+        this._addHandler(this._win, 'keyup', keyupHandler);
+        this._forwardKeydown = keydownHandler;
+        this._forwardKeyup = keyupHandler;
     }
 
     _bindFocusEvents() {
-        this._win.addEventListener('focusin', (e) => {
+        const focusInHandler = (e) => {
             CanvasDiagnostics.trackEventBridgeEvent();
             eventBus.emit('focus:in', { target: e.target, relatedTarget: e.relatedTarget });
-        });
-
-        this._win.addEventListener('focusout', (e) => {
+        };
+        const focusOutHandler = (e) => {
             CanvasDiagnostics.trackEventBridgeEvent();
             eventBus.emit('focus:out', { target: e.target, relatedTarget: e.relatedTarget });
-        });
+        };
+        this._addHandler(this._win, 'focusin', focusInHandler);
+        this._addHandler(this._win, 'focusout', focusOutHandler);
+        this._emitFocusIn = focusInHandler;
+        this._emitFocusOut = focusOutHandler;
     }
 }
 

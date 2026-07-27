@@ -16,6 +16,7 @@ export class LayerPanel {
         this.container = document.querySelector('#panel-right');
         this.selectedElements = [];   // Mảng thay vì single
         this.expandedMap = new Map();
+        this._layerItems = null;
 
         this._bindEvents();
         this._registerPipeline();
@@ -43,7 +44,10 @@ export class LayerPanel {
         });
 
         eventBus.on('element:added', () => DirtyState.mark(DIRTY.LAYER));
-        eventBus.on('element:deleted', () => DirtyState.mark(DIRTY.LAYER));
+        eventBus.on('element:deleted', (el) => {
+            this.expandedMap.delete(el.id);
+            DirtyState.mark(DIRTY.LAYER);
+        });
         eventBus.on('layer:refresh', () => DirtyState.mark(DIRTY.LAYER));
 
         eventBus.on('tab:switch', (tabName) => {
@@ -71,7 +75,6 @@ export class LayerPanel {
         const tree = document.createElement('div');
         tree.className = 'layer-tree';
 
-        // Render canvas children
         const children = Array.from(this.editor.canvas.querySelectorAll(':scope > [data-editor-element]'));
         children.forEach(el => {
             this._renderNode(el, tree, 0);
@@ -87,6 +90,8 @@ export class LayerPanel {
         section.appendChild(header);
         section.appendChild(body);
         this.container.appendChild(section);
+
+        this._layerItems = this.container.querySelectorAll('.layer-item');
     }
 
     /** Render một node */
@@ -250,15 +255,18 @@ export class LayerPanel {
 
     /** Highlight các layer items đang được chọn */
     _highlightLayers() {
-        this.container.querySelectorAll('.layer-item').forEach(item => {
-            item.classList.remove('selected');
-            const isSelected = this.selectedElements.some(
-                el => item.dataset.elementId === el.id
-            );
-            if (isSelected) {
+        if (!this._layerItems) {
+            this._layerItems = this.container.querySelectorAll('.layer-item');
+        }
+        const selectedIds = new Set(this.selectedElements.map(el => el.id));
+        for (let i = 0; i < this._layerItems.length; i++) {
+            const item = this._layerItems[i];
+            if (selectedIds.has(item.dataset.elementId)) {
                 item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
             }
-        });
+        }
     }
 
     /** Get icon cho type */

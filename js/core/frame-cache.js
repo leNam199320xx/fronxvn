@@ -62,6 +62,28 @@ export class FrameCache {
      */
     beginFrame() {
         this._frameId++;
+        this._cleanupStaleEntries();
+    }
+
+    /**
+     * Remove entries from frames older than 1 frame ago.
+     * They are already invalidated by the frameId check in get().
+     * This prevents unbounded Map growth over long sessions.
+     */
+    _cleanupStaleEntries() {
+        const cutoff = this._frameId - 1;
+        if (this._cache.size <= 500) return;
+        const toDelete = [];
+        for (const [key, entry] of this._cache) {
+            if (entry.frame < cutoff) {
+                toDelete.push(key);
+            }
+        }
+        if (toDelete.length > 0) {
+            for (let i = 0; i < toDelete.length; i++) {
+                this._cache.delete(toDelete[i]);
+            }
+        }
     }
 
     /**

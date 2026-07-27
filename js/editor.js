@@ -8,16 +8,7 @@ import CoordinateSystem from './canvas/coordinate.js';
 import RenderScheduler, { PRIORITY } from './core/render-scheduler.js';
 import Benchmark from './core/benchmark.js';
 import RenderProfiler from './core/render-profiler.js';
-import {
-    ZOOM_DEFAULT, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP,
-    GRID_SIZE, GRID_ENABLED_DEFAULT,
-    ARROW_NUDGE, ARROW_NUDGE_SHIFT,
-    HISTORY_MAX_SIZE, PASTE_OFFSET,
-    AUTOSAVE_DELAY_MS, AUTOLOAD_DELAY_MS,
-    AUTOSAVE_STORAGE_KEY, PROJECT_VERSION,
-    CANVAS_INNER_PADDING,
-    BREAKPOINT_LABEL_TABLET, BREAKPOINT_LABEL_MOBILE
-} from './config.js';
+import { KeyboardShortcuts } from './keyboard-shortcuts.js';
 import { Selection } from './selection.js';
 import { Overlay } from './overlay.js';
 import { Drag } from './drag.js';
@@ -146,12 +137,12 @@ class Editor {
         this.qualityEngine = new QualityEngine(this);
         this.qualityPanel  = new QualityPanel(this);
 
-        // ComponentManager + ComponentPanel — khởi tạo sau QualityEngine
         this.componentManager = new ComponentManager(this);
         this.componentPanel   = new ComponentPanel(this);
 
-        // ThemeManager — khởi tạo sau tất cả modules
         this.themeManager = new ThemeManager(this);
+
+        this.keyboardShortcuts = new KeyboardShortcuts(this);
     }
 
     /** Khởi tạo toolbar */
@@ -442,7 +433,7 @@ class Editor {
 
     /** Bindcác sự kiện chính */
     _bindEvents() {
-        eventBus.on('pointer:mousemove', (data) => {
+        this._onPointerMouseMove = (data) => {
             const { x, y } = CoordinateSystem.mousePosition(data);
             const rx = Math.round(x);
             const ry = Math.round(y);
@@ -450,9 +441,9 @@ class Editor {
                 this.coordsDisplay.textContent = `X: ${rx}  Y: ${ry}`;
             }, PRIORITY.NORMAL);
             eventBus.emit('canvas:mousemove', { x: rx, y: ry, clientX: data.clientX, clientY: data.clientY });
-        });
+        };
 
-        eventBus.on('wheel', (data) => {
+        this._onWheel = (data) => {
             if (data.ctrlKey) {
                 if (data.deltaY < 0) {
                     this.zoomIn();
@@ -460,26 +451,23 @@ class Editor {
                     this.zoomOut();
                 }
             }
-        });
+        };
 
         // Scroll event
-        this.canvasContainer.addEventListener('scroll', () => {
+        this._onCanvasScroll = () => {
             eventBus.emit('canvas:scroll', {
                 scrollLeft: this.canvasContainer.scrollLeft,
                 scrollTop: this.canvasContainer.scrollTop
             });
-        });
+        };
 
         // Window resize
-        window.addEventListener('resize', () => {
+        this._onWindowResize = () => {
             eventBus.emit('canvas:resize');
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => this._handleKeydown(e));
+        };
 
         // Space key: kích hoạt PanMode
-        document.addEventListener('keydown', (e) => {
+        this._onKeyDown = (e) => {
             if (e.code === 'Space') {
                 const t = e.target;
                 const iframeCE = e._isIframeContentEditable;
@@ -490,15 +478,23 @@ class Editor {
                     this.canvasWrapper.style.cursor = 'grab';
                 }
             }
-        });
+        };
 
-        document.addEventListener('keyup', (e) => {
+        this._onKeyUp = (e) => {
             if (e.code === 'Space') {
                 this.isPanning = false;
                 this._panMouseActive = false;
                 this.canvasWrapper.style.cursor = '';
             }
-        });
+        };
+
+        eventBus.on('pointer:mousemove', this._onPointerMouseMove);
+        eventBus.on('wheel', this._onWheel);
+
+        this.canvasContainer.addEventListener('scroll', this._onCanvasScroll);
+        window.addEventListener('resize', this._onWindowResize);
+        document.addEventListener('keydown', this._onKeyDown);
+        document.addEventListener('keyup', this._onKeyUp);
 
         eventBus.on('pointer:mousedown', (data) => {
             if (this.isPanning && data.button === 0) {
@@ -540,120 +536,27 @@ class Editor {
         });
     }
 
-    /** Xử lý phím tắt */
-    _handleKeydown(e) {
-        const target = e.target;
-        // Không xử lý khi đang focus input
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || e._isIframeContentEditable) {
-            return;
+    /** Release DOM event listeners and canvas resources. */
+    _cleanupResources() {
+        if (this._onPointerMouseMove) {
+            eventBus.off('pointer:mousemove', this._onPointerMouseMove);
         }
-
-        const ctrl = e.ctrlKey || e.metaKey;
-        const shift = e.shiftKey;
-
-        // Ctrl+G: Group
-        if (ctrl && !shift && e.key === 'g') {
-            e.preventDefault();
-            eventBus.emit('group:group');
-            return;
+        if (this._onWheel) {
+            eventBus.off('wheel', this._onWheel);
         }
-        // Ctrl+Shift+G: Ungroup
-        if (ctrl && shift && (e.key === 'g' || e.key === 'G')) {
-            e.preventDefault();
-            eventBus.emit('group:ungroup');
-            return;
+        if (this._onCanvasScroll) {
+            this.canvasContainer.removeEventListener('scroll', this._onCanvasScroll);
         }
-
-        // Ctrl+Z: Undo
-        if (ctrl && !shift && e.key === 'z') {
-            e.preventDefault();
-            eventBus.emit('history:undo');
-            return;
+        if (this._onWindowResize) {
+            window.removeEventListener('resize', this._onWindowResize);
         }
-        // Ctrl+Shift+Z: Redo
-        if (ctrl && shift && e.key === 'Z') {
-            e.preventDefault();
-            eventBus.emit('history:redo');
-            return;
+        if (this._onKeyDown) {
+            document.removeEventListener('keydown', this._onKeyDown);
         }
-        // Ctrl+C: Copy
-        if (ctrl && e.key === 'c') {
-            e.preventDefault();
-            eventBus.emit('clipboard:copy');
-            return;
+        if (this._onKeyUp) {
+            document.removeEventListener('keyup', this._onKeyUp);
         }
-        // Ctrl+V: Paste
-        if (ctrl && e.key === 'v') {
-            e.preventDefault();
-            eventBus.emit('clipboard:paste');
-            return;
-        }
-        // Ctrl+X: Cut
-        if (ctrl && e.key === 'x') {
-            e.preventDefault();
-            eventBus.emit('clipboard:cut');
-            return;
-        }
-        // Ctrl+D: Duplicate
-        if (ctrl && e.key === 'd') {
-            e.preventDefault();
-            eventBus.emit('clipboard:duplicate');
-            return;
-        }
-        // Ctrl+L: Lock/Unlock toggle
-        if (ctrl && !shift && e.key === 'l') {
-            e.preventDefault();
-            eventBus.emit('element:lock-toggle');
-            return;
-        }
-        // Ctrl+H: Hide/Show toggle
-        if (ctrl && !shift && e.key === 'h') {
-            e.preventDefault();
-            eventBus.emit('element:hide-toggle');
-            return;
-        }
-        // Ctrl+Shift+]: Bring to Front
-        if (ctrl && shift && e.key === ']') {
-            e.preventDefault();
-            eventBus.emit('element:bring-front');
-            return;
-        }
-        // Ctrl+]: Move Forward
-        if (ctrl && !shift && e.key === ']') {
-            e.preventDefault();
-            eventBus.emit('element:move-forward');
-            return;
-        }
-        // Ctrl+[: Move Backward
-        if (ctrl && !shift && e.key === '[') {
-            e.preventDefault();
-            eventBus.emit('element:move-backward');
-            return;
-        }
-        // Ctrl+Shift+[: Send to Back
-        if (ctrl && shift && e.key === '[') {
-            e.preventDefault();
-            eventBus.emit('element:send-back');
-            return;
-        }
-        // Delete / Backspace
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-            e.preventDefault();
-            eventBus.emit('element:delete');
-            return;
-        }
-        // Arrow keys: di chuyển phần tử
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-            e.preventDefault();
-            const amount = shift ? ARROW_NUDGE_SHIFT : ARROW_NUDGE;
-            let dx = 0, dy = 0;
-            if (e.key === 'ArrowUp') dy = -amount;
-            if (e.key === 'ArrowDown') dy = amount;
-            if (e.key === 'ArrowLeft') dx = -amount;
-            if (e.key === 'ArrowRight') dx = amount;
-            eventBus.emit('element:move-by', { dx, dy });
-            return;
-        }
+        CanvasAPI.dispose();
     }
 
     /** Zoom in */

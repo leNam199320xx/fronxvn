@@ -30,7 +30,7 @@ const FLAG_TO_KEYS = new Map([
 
 export class RenderScheduler {
     constructor() {
-        this._queue = [];
+        this._buckets = [[], [], []];
         this._keys = new Set();
         this._rafId = null;
         this._dirtyState = DirtyState;
@@ -65,8 +65,7 @@ export class RenderScheduler {
             wrapped = RenderProfiler.wrap(key, callback);
         }
 
-        this._queue.push({ key, priority, callback: wrapped });
-        this._queue.sort((a, b) => a.priority - b.priority);
+        this._buckets[priority].push({ key, callback: wrapped });
         this._scheduleFlush();
     }
 
@@ -95,25 +94,33 @@ export class RenderScheduler {
         if (this._rafId) {
             this._rafId = null;
         }
-        const tasks = this._queue;
-        this._queue = [];
-        this._keys.clear();
-        for (let i = 0; i < tasks.length; i++) {
-            try {
-                tasks[i].callback();
-            } catch (err) {
-                console.error('[RenderScheduler] Task failed:', err);
+
+        let hasTasks = false;
+        for (let p = 0; p < 3; p++) {
+            const tasks = this._buckets[p];
+            if (tasks.length === 0) continue;
+            hasTasks = true;
+            this._buckets[p] = [];
+            for (let i = 0; i < tasks.length; i++) {
+                try {
+                    tasks[i].callback();
+                } catch (err) {
+                    console.error('[RenderScheduler] Task failed:', err);
+                }
             }
         }
-        // Clear dirty flags after rendering
-        this._dirtyState.clearAll();
+        this._keys.clear();
+
+        if (hasTasks) {
+            this._dirtyState.clearAll();
+        }
     }
 
     /**
      * Remove all scheduled tasks.
      */
     clear() {
-        this._queue = [];
+        this._buckets = [[], [], []];
         this._keys.clear();
     }
 

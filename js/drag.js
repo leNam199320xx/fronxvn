@@ -29,6 +29,9 @@ export class Drag {
         this.guides = [];
         this.snapThreshold = SNAP_THRESHOLD;
         this._rafId = null;
+        this._snapVersion = 0;
+        this._snapOthers = [];
+        this._rbLayerRect = null;
 
         // Rubber-band state
         this.rbStartX = 0;
@@ -64,6 +67,11 @@ export class Drag {
         // Di chuyển bằng arrow keys
         eventBus.on('element:move-by', ({ dx, dy }) => {
             this._moveByKey(dx, dy);
+        });
+
+        eventBus.on('selection:changed', () => {
+            this._snapVersion++;
+            this._snapOthers = [];
         });
     }
 
@@ -104,7 +112,6 @@ export class Drag {
     _startDrag(e, elements) {
         if (this.editor.isPanning) return;
 
-        // Alt+Drag: duplicate elements trước, drag bản copy
         if (e.altKey) {
             elements = this._duplicateForDrag(elements);
         }
@@ -116,7 +123,6 @@ export class Drag {
         this.startX = start.x;
         this.startY = start.y;
 
-        // Lưu vị trí ban đầu của tất cả elements
         this.startPositions = elements.map(el => ({
             el,
             left: parseFloat(CanvasAPI.getStyle(el, 'left')) || 0,
@@ -269,7 +275,10 @@ export class Drag {
 
     /** Cập nhật rubber-band rect */
     _handleRubberBandMove(e) {
-        const layerRect = CanvasAPI.getElementRect(this.editor.overlayLayer);
+        if (!this._rbLayerRect) {
+            this._rbLayerRect = CanvasAPI.getElementRect(this.editor.overlayLayer);
+        }
+        const layerRect = this._rbLayerRect;
         const x = e.clientX - layerRect.left;
         const y = e.clientY - layerRect.top;
         const startX = this.rbStartX - layerRect.left;
@@ -287,6 +296,7 @@ export class Drag {
     _handleRubberBandUp(e) {
         eventBus.emit('rubber-band:end');
         this.isRubberBanding = false;
+        this._rbLayerRect = null;
 
         const canvasPoint = CoordinateSystem.mousePosition(e);
         const x1 = Math.min(this._rbCanvasStartX, canvasPoint.x);
@@ -294,19 +304,26 @@ export class Drag {
         const x2 = Math.max(this._rbCanvasStartX, canvasPoint.x);
         const y2 = Math.max(this._rbCanvasStartY, canvasPoint.y);
 
-        // Bỏ qua nếu vùng chọn quá nhỏ (click thường)
         if (x2 - x1 < DRAG_MIN_DISTANCE && y2 - y1 < DRAG_MIN_DISTANCE) return;
 
-        // Tìm elements nằm trong vùng rubber-band
-        const elements = this.editor.getElements().filter(el => {
-            const rect = this.editor.getElementRect(el);
-            return rect.x >= x1 && rect.y >= y1 &&
-                   rect.x + rect.width <= x2 &&
-                   rect.y + rect.height <= y2;
+        const elements = this.editor.getElements();
+        const rects = new Map();
+        elements.forEach(el => {
+            rects.set(el, this.editor.getElementRect(el));
+        });
+        const selected = this.editor.selection.getSelectedAll();
+        const selectedSet = new Set(selected);
+
+        const result = elements.filter(el => {
+            if (selectedSet.has(el)) return false;
+            const r = rects.get(el);
+            return r.x >= x1 && r.y >= y1 &&
+                   r.x + r.width <= x2 &&
+                   r.y + r.height <= y2;
         });
 
-        if (elements.length > 0) {
-            this.editor.selection.setSelection(elements);
+        if (result.length > 0) {
+            this.editor.selection.setSelection(result);
         }
     }
 
@@ -322,12 +339,17 @@ export class Drag {
         const right = x + w;
         const bottom = y + h;
 
-        const others = this.editor.getElements().filter(e => !this.editor.selection.isSelected(e));
+        if (!this._snapOthers || this._snapOthersVersion !== this._snapVersion) {
+            this._snapOthers = this.editor.getElements().filter(e => !this.editor.selection.isSelected(e));
+            this._snapOthersVersion = this._snapVersion;
+        }
+        const others = this._snapOthers;
 
         let snappedX = x;
         let snappedY = y;
 
-        others.forEach(other => {
+        for (let i = 0; i < others.length; i++) {
+            const other = others[i];
             const rect = this.editor.getElementRect(other);
             const ox = rect.x, oy = rect.y, ow = rect.width, oh = rect.height;
             const ocx = ox + ow / 2, ocy = oy + oh / 2;
@@ -344,7 +366,7 @@ export class Drag {
             else if (Math.abs(cy - ocy) < this.snapThreshold) { snappedY = ocy - h / 2; guides.push({ type: 'horizontal', pos: ocy }); }
             else if (Math.abs(bottom - oy) < this.snapThreshold) { snappedY = oy - h; guides.push({ type: 'horizontal', pos: oy }); }
             else if (Math.abs(bottom - oBottom) < this.snapThreshold) { snappedY = oBottom - h; guides.push({ type: 'horizontal', pos: oBottom }); }
-        });
+        }
 
         return { x: snappedX, y: snappedY, guides };
     }

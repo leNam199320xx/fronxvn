@@ -1,17 +1,5 @@
 import { DEFAULT_COLOR_FALLBACK } from '../config.js';
-
-export function toHex(color) {
-    if (!color) return DEFAULT_COLOR_FALLBACK;
-    if (color.startsWith('#')) return color;
-    if (color.startsWith('rgb')) {
-        const match = color.match(/\d+/g);
-        if (match) {
-            const [r, g, b] = match.map(Number);
-            return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
-        }
-    }
-    return DEFAULT_COLOR_FALLBACK;
-}
+import { toHex } from '../core/color.js';
 
 export function createFieldRow(field, onChange) {
     const row = document.createElement('div');

@@ -9,14 +9,16 @@
  * - Ngăn observer tự cập nhật đệ quy
  */
 import eventBus from '../event-bus.js';
-import CanvasAPI from './canvas-api.js';
 import DirtyState, { DIRTY } from '../core/dirty-state.js';
 import CanvasDiagnostics from './canvas-diagnostics.js';
 
 const RECENT_EMIT_WINDOW = 150;
 
 export class CanvasMutationObserver {
-    constructor() {
+    constructor(getRoot, matches, closest) {
+        this._getRoot = getRoot;
+        this._matches = matches;
+        this._closest = closest;
         this._observer = null;
         this._queue = [];
         this._rafId = null;
@@ -25,7 +27,7 @@ export class CanvasMutationObserver {
     }
 
     init() {
-        const root = CanvasAPI.getRoot();
+        const root = this._getRoot();
         if (!root || this._observer) return;
 
         this._observer = new MutationObserver((records) => {
@@ -47,6 +49,20 @@ export class CanvasMutationObserver {
         eventBus.on('element:updated', (el) => this._recentEmits.set(el, Date.now()));
     }
 
+    /** Disconnect the MutationObserver and clear pending work. */
+    disconnect() {
+        if (this._observer) {
+            this._observer.disconnect();
+            this._observer = null;
+        }
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
+        }
+        this._queue = [];
+        this._recentEmits = new WeakMap();
+    }
+
     _scheduleFlush() {
         if (this._rafId) return;
         this._rafId = requestAnimationFrame(() => this._flush());
@@ -62,7 +78,7 @@ export class CanvasMutationObserver {
         try {
             CanvasDiagnostics.trackMutationRecords(records.length);
             let hasRealChanges = false;
-            const root = CanvasAPI.getRoot();
+            const root = this._getRoot();
             const now = Date.now();
 
             const added = [];
@@ -76,13 +92,13 @@ export class CanvasMutationObserver {
                 if (record.type === 'childList') {
                     for (const node of record.addedNodes) {
                         if (node.nodeType !== 1) continue;
-                        if (CanvasAPI.matches(node, '[data-editor-element]')) {
+                        if (this._matches(node, '[data-editor-element]')) {
                             added.push(node);
                         }
                     }
                     for (const node of record.removedNodes) {
                         if (node.nodeType !== 1) continue;
-                        if (CanvasAPI.matches(node, '[data-editor-element]')) {
+                        if (this._matches(node, '[data-editor-element]')) {
                             removed.push(node);
                         }
                     }
@@ -90,11 +106,11 @@ export class CanvasMutationObserver {
                     if (isCanvasRoot) {
                         hasRealChanges = true;
                     } else {
-                        const el = CanvasAPI.matches(target, '[data-editor-element]') ? target : CanvasAPI.closest(target, '[data-editor-element]');
+                        const el = this._matches(target, '[data-editor-element]') ? target : this._closest(target, '[data-editor-element]');
                         if (el) updated.push(el);
                     }
                 } else if (record.type === 'characterData') {
-                    const el = target.parentElement && CanvasAPI.closest(target.parentElement, '[data-editor-element]');
+                    const el = target.parentElement && this._closest(target.parentElement, '[data-editor-element]');
                     if (el) updated.push(el);
                 }
             }

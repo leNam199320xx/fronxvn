@@ -1,8 +1,6 @@
 /**
  * CanvasHost - Manages the iframe host for the editable canvas.
  */
-import CanvasEventBridge from './canvas-event-bridge.js';
-import CanvasMutationObserver from './canvas-mutation-observer.js';
 import CanvasStyleLoader from './canvas-style-loader.js';
 
 export class CanvasHost {
@@ -11,8 +9,6 @@ export class CanvasHost {
         this._doc = null;
         this._win = null;
         this._root = null;
-        this._bridge = null;
-        this._mutationObserver = null;
     }
 
     init() {
@@ -54,12 +50,6 @@ export class CanvasHost {
                 this._win = win;
                 this._root = root;
 
-                this._bridge = new CanvasEventBridge(iframe, doc, win);
-                this._bridge.init();
-
-                this._mutationObserver = new CanvasMutationObserver();
-                this._mutationObserver.init();
-
                 this._initResizeObserver();
 
                 resolve(this);
@@ -93,7 +83,21 @@ export class CanvasHost {
             observer.observe(this._root);
         } catch (_) {}
 
+        this._resizeObserver = observer;
+        this._resizeHandler = applySize;
         window.addEventListener('resize', applySize);
+    }
+
+    /** Disconnect observers and listeners created by _initResizeObserver. */
+    _disposeResizeObserver() {
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+            this._resizeObserver = null;
+        }
+        if (this._resizeHandler) {
+            window.removeEventListener('resize', this._resizeHandler);
+            this._resizeHandler = null;
+        }
     }
 
     getDocument() {

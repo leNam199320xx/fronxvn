@@ -17,6 +17,7 @@ export class Overlay {
         this.editor = editor;
         this.layer = editor.overlayLayer;
         this.selectedElements = [];
+        this._selectedIds = new Set();
 
         /** @type {Map<HTMLElement, HTMLElement>} element → badge DOM node */
         this._badges = new Map();
@@ -110,6 +111,7 @@ export class Overlay {
     _bindEvents() {
         eventBus.on('selection:changed', (elements) => {
             this.selectedElements = elements || [];
+            this._selectedIds = new Set(elements.map(el => el.id));
             if (this.selectedElements.length === 0) {
                 this._hideOverlay();
             } else {
@@ -120,8 +122,9 @@ export class Overlay {
         });
 
         eventBus.on('element:selected', (el) => {
-            if (!this.selectedElements.includes(el)) {
+            if (!this._selectedIds.has(el.id)) {
                 this.selectedElements = [el];
+                this._selectedIds = new Set([el.id]);
                 DirtyState.mark(DIRTY.SELECTION);
                 DirtyState.mark(DIRTY.OVERLAY);
                 RenderPipeline.flushStage('pipeline-selection');
@@ -130,6 +133,7 @@ export class Overlay {
 
         eventBus.on('element:deselected', () => {
             this.selectedElements = [];
+            this._selectedIds = new Set();
             this._hideOverlay();
         });
 
@@ -142,14 +146,14 @@ export class Overlay {
         });
 
         eventBus.on('element:updated', (el) => {
-            if (this.selectedElements.includes(el)) {
+            if (this._selectedIds.has(el.id)) {
                 DirtyState.mark(DIRTY.OVERLAY);
                 RenderPipeline.flushStage('pipeline-overlay');
             }
         });
 
         eventBus.on('element:transform', (el) => {
-            if (this.selectedElements.includes(el)) {
+            if (this._selectedIds.has(el.id)) {
                 DirtyState.mark(DIRTY.OVERLAY);
                 RenderPipeline.flushStage('pipeline-overlay');
             }
@@ -186,6 +190,7 @@ export class Overlay {
 
         eventBus.on('overlay:clear', () => {
             this.selectedElements = [];
+            this._selectedIds = new Set();
             this._hideOverlay();
             this._hideRubberBand();
             this.hoverBox.style.display = 'none';
@@ -196,6 +201,14 @@ export class Overlay {
 
         eventBus.on('quality:updated', () => {
             RenderPipeline.flushStage('pipeline-quality');
+        });
+
+        eventBus.on('element:deleted', (el) => {
+            const badge = this._badges.get(el);
+            if (badge) {
+                badge.remove();
+                this._badges.delete(el);
+            }
         });
 
         eventBus.on('drag:start', () => {
@@ -277,10 +290,13 @@ export class Overlay {
     _updateOverlay() {
         if (this.selectedElements.length === 0) return;
 
+        this._cachedLayerRect = CanvasAPI.getElementRect(this.layer);
+
         if (this.selectedElements.length === 1) {
             const el = this.selectedElements[0];
             if (!ViewportCulling.isVisible(el)) {
                 this.selectionBox.style.display = 'none';
+                this._cachedLayerRect = null;
                 return;
             }
             this.selectionBox.style.display = 'block';
@@ -289,21 +305,24 @@ export class Overlay {
             const visible = ViewportCulling.visibleElements(this.selectedElements);
             if (visible.length === 0) {
                 this.selectionBox.style.display = 'none';
+                this._cachedLayerRect = null;
                 return;
             }
             this.selectionBox.style.display = 'block';
             this._updateMultiOverlay(visible);
         }
+        this._cachedLayerRect = null;
     }
 
     /** Overlay cho 1 element */
     _updateSingleOverlay(el) {
-        const rect = this._getElementScreenRect(el);
+        const elRect = CanvasAPI.getElementRect(el);
+        const layerRect = this._cachedLayerRect || CanvasAPI.getElementRect(this.layer);
 
-        this.selectionBox.style.left   = rect.left   + 'px';
-        this.selectionBox.style.top    = rect.top    + 'px';
-        this.selectionBox.style.width  = rect.width  + 'px';
-        this.selectionBox.style.height = rect.height + 'px';
+        this.selectionBox.style.left   = (elRect.left - layerRect.left) + 'px';
+        this.selectionBox.style.top    = (elRect.top - layerRect.top) + 'px';
+        this.selectionBox.style.width  = elRect.width + 'px';
+        this.selectionBox.style.height = elRect.height + 'px';
 
         const w = Math.round(parseFloat(el.style.width)  || el.offsetWidth);
         const h = Math.round(parseFloat(el.style.height) || el.offsetHeight);
@@ -313,10 +332,8 @@ export class Overlay {
         this.dimensionLabel.textContent = `${w} × ${h}`;
         this.positionLabel.textContent  = `${x}, ${y}`;
 
-        // Khi đang thao tác: dimension luôn hiện
         if (this._isResizing || this._isMoving || this._isRotating) {
             this.dimensionLabel.style.display = 'block';
-            // Position hiện thêm khi đang di chuyển
             this.positionLabel.style.display = this._isMoving ? 'block' : 'none';
         }
     }
@@ -324,17 +341,20 @@ export class Overlay {
     /** Overlay bounding box cho nhiều element */
     _updateMultiOverlay(visibleElements) {
         let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
-        const layerRect = CanvasAPI.getElementRect(this.layer);
+        const layerRect = this._cachedLayerRect || CanvasAPI.getElementRect(this.layer);
 
-        visibleElements.forEach(el => {
+        for (let i = 0; i < visibleElements.length; i++) {
+            const el = visibleElements[i];
             const elRect = CanvasAPI.getElementRect(el);
             const left = elRect.left - layerRect.left;
             const top = elRect.top - layerRect.top;
-            minLeft = Math.min(minLeft, left);
-            minTop = Math.min(minTop, top);
-            maxRight = Math.max(maxRight, left + elRect.width);
-            maxBottom = Math.max(maxBottom, top + elRect.height);
-        });
+            if (left < minLeft) minLeft = left;
+            if (top < minTop) minTop = top;
+            const right = left + elRect.width;
+            const bottom = top + elRect.height;
+            if (right > maxRight) maxRight = right;
+            if (bottom > maxBottom) maxBottom = bottom;
+        }
 
         this.selectionBox.style.left = minLeft + 'px';
         this.selectionBox.style.top = minTop + 'px';

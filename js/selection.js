@@ -214,8 +214,8 @@ export class Selection {
         debug.action('selection', 'select', { id: el.id, type: el.dataset.type });
         this.selectedElements = [el];
         DirtyState.mark(DIRTY.SELECTION);
-        eventBus.emit('element:selected', el);
         eventBus.emit('selection:changed', this.selectedElements);
+        eventBus.emit('element:selected', el);
     }
 
     /**
@@ -234,13 +234,15 @@ export class Selection {
         DirtyState.mark(DIRTY.SELECTION);
 
         if (this.selectedElements.length === 1) {
+            eventBus.emit('selection:changed', this.selectedElements);
             eventBus.emit('element:selected', this.selectedElements[0]);
         } else if (this.selectedElements.length === 0) {
+            eventBus.emit('selection:changed', this.selectedElements);
             eventBus.emit('element:deselected');
         } else {
+            eventBus.emit('selection:changed', this.selectedElements);
             eventBus.emit('element:selected', this.selectedElements[0]);
         }
-        eventBus.emit('selection:changed', this.selectedElements);
     }
 
     /**
@@ -252,6 +254,8 @@ export class Selection {
             debug.action('selection', 'addToSelection', { id: el.id, type: el.dataset.type });
             this.selectedElements.push(el);
             DirtyState.mark(DIRTY.SELECTION);
+            eventBus.emit('selection:changed', this.selectedElements);
+            eventBus.emit('element:selected', el);
         }
     }
 
@@ -264,9 +268,11 @@ export class Selection {
         this.selectedElements = this.selectedElements.filter(e => e !== el);
         DirtyState.mark(DIRTY.SELECTION);
         if (this.selectedElements.length === 0) {
+            eventBus.emit('selection:changed', this.selectedElements);
             eventBus.emit('element:deselected');
+        } else {
+            eventBus.emit('selection:changed', this.selectedElements);
         }
-        eventBus.emit('selection:changed', this.selectedElements);
     }
 
     /**
@@ -278,11 +284,12 @@ export class Selection {
         this.selectedElements = [...elements];
         DirtyState.mark(DIRTY.SELECTION);
         if (this.selectedElements.length === 0) {
+            eventBus.emit('selection:changed', this.selectedElements);
             eventBus.emit('element:deselected');
         } else {
+            eventBus.emit('selection:changed', this.selectedElements);
             eventBus.emit('element:selected', this.selectedElements[0]);
         }
-        eventBus.emit('selection:changed', this.selectedElements);
     }
 
     /** Bỏ chọn tất cả */
@@ -291,8 +298,8 @@ export class Selection {
         debug.action('selection', 'deselectAll', { count: this.selectedElements.length });
         this.selectedElements = [];
         DirtyState.mark(DIRTY.SELECTION);
+        eventBus.emit('selection:changed', this.selectedElements);
         eventBus.emit('element:deselected');
-        eventBus.emit('selection:changed', []);
     }
 
     /**

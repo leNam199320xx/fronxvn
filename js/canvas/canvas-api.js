@@ -82,7 +82,7 @@ class CanvasAPI {
 
     insertAfter(el, refNode, target) {
         const parent = target || this.getRoot();
-        if (parent && refNode && refNode.parentNode === parent) {
+        if (parent && refNode && refNode.nextSibling) {
             parent.insertBefore(el, refNode.nextSibling);
         }
     }
@@ -329,8 +329,40 @@ class CanvasAPI {
         return parent.contains(child);
     }
 
-    init() {
-        return CanvasHost.init();
+    async init() {
+        await CanvasHost.init();
+        const iframe = CanvasHost.getIframe();
+        const doc = CanvasHost.getDocument();
+        const win = CanvasHost.getWindow();
+
+        const [{ default: CanvasEventBridge }, { default: CanvasMutationObserver }] = await Promise.all([
+            import('./canvas-event-bridge.js'),
+            import('./canvas-mutation-observer.js')
+        ]);
+
+        this._bridge = new CanvasEventBridge(iframe, doc, win, this.getIframeRect.bind(this));
+        this._bridge.init();
+
+        this._mutationObserver = new CanvasMutationObserver(
+            this.getRoot.bind(this),
+            this.matches.bind(this),
+            this.closest.bind(this)
+        );
+        this._mutationObserver.init();
+    }
+
+    /** Disconnect canvas observers and event bridge to release resources. */
+    dispose() {
+        if (this._mutationObserver) {
+            this._mutationObserver.disconnect();
+            this._mutationObserver = null;
+        }
+        if (this._bridge) {
+            this._bridge.destroy();
+            this._bridge = null;
+        }
+        CanvasHost._disposeResizeObserver();
+        FrameCache.clear();
     }
 }
 

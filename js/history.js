@@ -4,8 +4,23 @@
  */
 import eventBus from './event-bus.js';
 import { HISTORY_MAX_SIZE } from './config.js';
-
 import debug from './debug.js';
+
+import {
+    setElementPosition,
+    setElementSize,
+    setElementTransform,
+    setElementStyleProp,
+    removeElement,
+    appendElement,
+    prependElement,
+    insertElementBefore,
+    insertElementAfter,
+    syncBreakpointStyles,
+    emitElementUpdated,
+    emitElementTransform,
+    emitLayerRefresh
+} from './history-helpers.js';
 
 export class History {
     constructor(editor) {
@@ -35,14 +50,12 @@ export class History {
     /** Thêm action vào history */
     push(action) {
         debug.action('history', 'push', action);
-        // Lưu thêm nextSibling tại thời điểm push để insertBefore chính xác khi undo
         if ((action.type === 'add' || action.type === 'delete') && action.element) {
             action.nextSibling = action.element.nextSibling || null;
         }
         this.undoStack.push(action);
-        this.redoStack = []; // Xóa redo khi có action mới
+        this.redoStack = [];
 
-        // Giới hạn kích thước
         if (this.undoStack.length > this.maxHistory) {
             this.undoStack.shift();
         }
@@ -89,38 +102,34 @@ export class History {
     _revert(action) {
         switch (action.type) {
             case 'move':
-                action.element.style.left = action.before.left + 'px';
-                action.element.style.top = action.before.top + 'px';
-                if (this.editor) {
-                    this.editor.breakpointManager.setStyle(action.element, 'left', action.before.left + 'px');
-                    this.editor.breakpointManager.setStyle(action.element, 'top', action.before.top + 'px');
-                }
-                eventBus.emit('element:updated', action.element);
-                eventBus.emit('element:transform', action.element);
+                setElementPosition(action.element, action.before.left, action.before.top);
+                syncBreakpointStyles(this.editor.breakpointManager, action.element, [
+                    { prop: 'left', value: action.before.left + 'px' },
+                    { prop: 'top', value: action.before.top + 'px' }
+                ]);
+                emitElementUpdated(action.element);
+                emitElementTransform(action.element);
                 break;
 
             case 'resize':
-                action.element.style.left = action.before.left + 'px';
-                action.element.style.top = action.before.top + 'px';
-                action.element.style.width = action.before.width + 'px';
-                action.element.style.height = action.before.height + 'px';
-                if (this.editor) {
-                    this.editor.breakpointManager.setStyle(action.element, 'left', action.before.left + 'px');
-                    this.editor.breakpointManager.setStyle(action.element, 'top', action.before.top + 'px');
-                    this.editor.breakpointManager.setStyle(action.element, 'width', action.before.width + 'px');
-                    this.editor.breakpointManager.setStyle(action.element, 'height', action.before.height + 'px');
-                }
-                eventBus.emit('element:updated', action.element);
-                eventBus.emit('element:transform', action.element);
+                setElementPosition(action.element, action.before.left, action.before.top);
+                setElementSize(action.element, action.before.width, action.before.height);
+                syncBreakpointStyles(this.editor.breakpointManager, action.element, [
+                    { prop: 'left', value: action.before.left + 'px' },
+                    { prop: 'top', value: action.before.top + 'px' },
+                    { prop: 'width', value: action.before.width + 'px' },
+                    { prop: 'height', value: action.before.height + 'px' }
+                ]);
+                emitElementUpdated(action.element);
+                emitElementTransform(action.element);
                 break;
 
             case 'style':
-                action.element.style[action.prop] = action.before;
-                eventBus.emit('element:updated', action.element);
+                setElementStyleProp(action.element, action.prop, action.before);
+                emitElementUpdated(action.element);
                 break;
 
             case 'css-bulk':
-                // Undo bulk CSS: restore toàn bộ style từ before string
                 action.element.removeAttribute('style');
                 (action.before || '').split('\n').forEach(line => {
                     const clean = line.trim().replace(/;$/, '');
@@ -128,87 +137,78 @@ export class History {
                     if (idx === -1) return;
                     action.element.style.setProperty(clean.slice(0, idx).trim(), clean.slice(idx + 1).trim());
                 });
-                eventBus.emit('element:updated', action.element);
+                emitElementUpdated(action.element);
                 break;
 
             case 'add':
-                action.element.remove();
+                removeElement(action.element);
                 eventBus.emit('element:deleted', action.element);
-                eventBus.emit('layer:refresh');
+                emitLayerRefresh();
                 break;
 
             case 'delete':
-                // Chèn đúng vị trí ban đầu thay vì append cuối
                 if (action.nextSibling && action.parent.contains(action.nextSibling)) {
-                    action.parent.insertBefore(action.element, action.nextSibling);
+                    insertElementBefore(action.element, action.nextSibling, action.parent);
                 } else {
-                    action.parent.appendChild(action.element);
+                    appendElement(action.element, action.parent);
                 }
                 eventBus.emit('element:added', action.element);
-                eventBus.emit('layer:refresh');
+                emitLayerRefresh();
                 break;
 
             case 'rotate':
-                action.element.style.transform = action.before;
-                eventBus.emit('element:updated', action.element);
+                setElementTransform(action.element, action.before);
+                emitElementUpdated(action.element);
                 break;
 
             case 'text-edit':
                 action.element.innerHTML = action.before;
-                eventBus.emit('element:updated', action.element);
+                emitElementUpdated(action.element);
                 break;
 
-            case 'group':
-                // Undo group: di chuyển children về parent, khôi phục tọa độ tuyệt đối, xóa GroupElement
+            case 'group': {
                 action.children.forEach(child => {
                     const pos = action.positions.find(p => p.el === child);
-                    child.style.left = pos.left + 'px';
-                    child.style.top  = pos.top  + 'px';
-                    action.parent.appendChild(child);
+                    setElementPosition(child, pos.left, pos.top);
+                    appendElement(child, action.parent);
                 });
-                action.groupEl.remove();
+                removeElement(action.groupEl);
                 eventBus.emit('element:deleted', action.groupEl);
-                eventBus.emit('layer:refresh');
+                emitLayerRefresh();
                 break;
+            }
 
-            case 'ungroup':
-                // Undo ungroup: tái tạo GroupElement, đưa children trở lại bên trong
-                action.groupEl.style.left = action.groupLeft + 'px';
-                action.groupEl.style.top  = action.groupTop  + 'px';
+            case 'ungroup': {
+                setElementPosition(action.groupEl, action.groupLeft, action.groupTop);
                 action.children.forEach(child => {
                     const pos = action.positions.find(p => p.el === child);
-                    child.style.left = pos.relLeft + 'px';
-                    child.style.top  = pos.relTop  + 'px';
-                    action.groupEl.appendChild(child);
+                    setElementPosition(child, pos.relLeft, pos.relTop);
+                    appendElement(child, action.groupEl);
                 });
-                action.parent.appendChild(action.groupEl);
+                appendElement(action.groupEl, action.parent);
                 eventBus.emit('element:added', action.groupEl);
-                eventBus.emit('layer:refresh');
+                emitLayerRefresh();
                 break;
+            }
 
             case 'component:insert':
-                // Undo insert: xóa instance khỏi canvas
-                action.element.remove();
+                removeElement(action.element);
                 eventBus.emit('element:deleted', action.element);
-                eventBus.emit('layer:refresh');
+                emitLayerRefresh();
                 break;
 
             case 'component:detach':
-                // Undo detach: restore component attrs lên element
                 action.element.dataset.componentId = action.componentId;
                 action.element.dataset.instanceId  = action.instanceId;
-                eventBus.emit('element:updated', action.element);
-                eventBus.emit('layer:refresh');
+                emitElementUpdated(action.element);
+                emitLayerRefresh();
                 break;
 
-            // ── Page operations ────────────────────────────────────────────────
             case 'page:add':
-                // Undo page add: xóa trang (không push history lại)
                 this.editor.pageManager.deletePage(action.pageId, { pushHistory: false });
                 break;
 
             case 'page:delete':
-                // Undo page delete: restore trang từ snapshot
                 this.editor.pageManager._restorePageFromSnapshot(
                     action.pageSnapshot,
                     action.insertIdx
@@ -216,7 +216,6 @@ export class History {
                 break;
 
             case 'page:rename':
-                // Undo rename: đặt lại tên cũ
                 this.editor.pageManager.renamePage(action.pageId, action.before, { pushHistory: false });
                 break;
         }
@@ -226,38 +225,34 @@ export class History {
     _apply(action) {
         switch (action.type) {
             case 'move':
-                action.element.style.left = action.after.left + 'px';
-                action.element.style.top = action.after.top + 'px';
-                if (this.editor) {
-                    this.editor.breakpointManager.setStyle(action.element, 'left', action.after.left + 'px');
-                    this.editor.breakpointManager.setStyle(action.element, 'top', action.after.top + 'px');
-                }
-                eventBus.emit('element:updated', action.element);
-                eventBus.emit('element:transform', action.element);
+                setElementPosition(action.element, action.after.left, action.after.top);
+                syncBreakpointStyles(this.editor.breakpointManager, action.element, [
+                    { prop: 'left', value: action.after.left + 'px' },
+                    { prop: 'top', value: action.after.top + 'px' }
+                ]);
+                emitElementUpdated(action.element);
+                emitElementTransform(action.element);
                 break;
 
             case 'resize':
-                action.element.style.left = action.after.left + 'px';
-                action.element.style.top = action.after.top + 'px';
-                action.element.style.width = action.after.width + 'px';
-                action.element.style.height = action.after.height + 'px';
-                if (this.editor) {
-                    this.editor.breakpointManager.setStyle(action.element, 'left', action.after.left + 'px');
-                    this.editor.breakpointManager.setStyle(action.element, 'top', action.after.top + 'px');
-                    this.editor.breakpointManager.setStyle(action.element, 'width', action.after.width + 'px');
-                    this.editor.breakpointManager.setStyle(action.element, 'height', action.after.height + 'px');
-                }
-                eventBus.emit('element:updated', action.element);
-                eventBus.emit('element:transform', action.element);
+                setElementPosition(action.element, action.after.left, action.after.top);
+                setElementSize(action.element, action.after.width, action.after.height);
+                syncBreakpointStyles(this.editor.breakpointManager, action.element, [
+                    { prop: 'left', value: action.after.left + 'px' },
+                    { prop: 'top', value: action.after.top + 'px' },
+                    { prop: 'width', value: action.after.width + 'px' },
+                    { prop: 'height', value: action.after.height + 'px' }
+                ]);
+                emitElementUpdated(action.element);
+                emitElementTransform(action.element);
                 break;
 
             case 'style':
-                action.element.style[action.prop] = action.after;
-                eventBus.emit('element:updated', action.element);
+                setElementStyleProp(action.element, action.prop, action.after);
+                emitElementUpdated(action.element);
                 break;
 
             case 'css-bulk':
-                // Redo bulk CSS: restore toàn bộ style từ after string
                 action.element.removeAttribute('style');
                 (action.after || '').split('\n').forEach(line => {
                     const clean = line.trim().replace(/;$/, '');
@@ -265,85 +260,77 @@ export class History {
                     if (idx === -1) return;
                     action.element.style.setProperty(clean.slice(0, idx).trim(), clean.slice(idx + 1).trim());
                 });
-                eventBus.emit('element:updated', action.element);
+                emitElementUpdated(action.element);
                 break;
 
             case 'add':
-                // Redo add: chèn đúng vị trí ban đầu
                 if (action.nextSibling && action.parent.contains(action.nextSibling)) {
-                    action.parent.insertBefore(action.element, action.nextSibling);
+                    insertElementBefore(action.element, action.nextSibling, action.parent);
                 } else {
-                    action.parent.appendChild(action.element);
+                    appendElement(action.element, action.parent);
                 }
                 eventBus.emit('element:added', action.element);
-                eventBus.emit('layer:refresh');
+                emitLayerRefresh();
                 break;
 
             case 'delete':
-                action.element.remove();
+                removeElement(action.element);
                 eventBus.emit('element:deleted', action.element);
-                eventBus.emit('layer:refresh');
+                emitLayerRefresh();
                 break;
 
             case 'rotate':
-                action.element.style.transform = action.after;
-                eventBus.emit('element:updated', action.element);
+                setElementTransform(action.element, action.after);
+                emitElementUpdated(action.element);
                 break;
 
             case 'text-edit':
                 action.element.innerHTML = action.after;
-                eventBus.emit('element:updated', action.element);
+                emitElementUpdated(action.element);
                 break;
 
-            case 'group':
-                // Redo group: di chuyển children vào GroupElement với tọa độ tương đối
+            case 'group': {
                 action.children.forEach(child => {
                     const pos = action.positions.find(p => p.el === child);
-                    child.style.left = (pos.left - action.groupLeft) + 'px';
-                    child.style.top  = (pos.top  - action.groupTop)  + 'px';
-                    action.groupEl.appendChild(child);
+                    setElementPosition(child, pos.left - action.groupLeft, pos.top - action.groupTop);
+                    appendElement(child, action.groupEl);
                 });
-                action.parent.appendChild(action.groupEl);
+                appendElement(action.groupEl, action.parent);
                 eventBus.emit('element:added', action.groupEl);
-                eventBus.emit('layer:refresh');
+                emitLayerRefresh();
                 break;
+            }
 
-            case 'ungroup':
-                // Redo ungroup: di chuyển children ra parent với tọa độ tuyệt đối, xóa GroupElement
+            case 'ungroup': {
                 action.children.forEach(child => {
                     const pos = action.positions.find(p => p.el === child);
-                    child.style.left = (pos.relLeft + action.groupLeft) + 'px';
-                    child.style.top  = (pos.relTop  + action.groupTop)  + 'px';
-                    action.parent.insertBefore(child, action.groupEl);
+                    setElementPosition(child, pos.relLeft + action.groupLeft, pos.relTop + action.groupTop);
+                    insertElementBefore(child, action.groupEl, action.parent);
                 });
-                action.groupEl.remove();
+                removeElement(action.groupEl);
                 eventBus.emit('element:deleted', action.groupEl);
-                eventBus.emit('layer:refresh');
+                emitLayerRefresh();
                 break;
+            }
 
             case 'component:insert':
-                // Redo insert: chèn lại instance
                 if (action.nextSibling && action.parent.contains(action.nextSibling)) {
-                    action.parent.insertBefore(action.element, action.nextSibling);
+                    insertElementBefore(action.element, action.nextSibling, action.parent);
                 } else {
-                    action.parent.appendChild(action.element);
+                    appendElement(action.element, action.parent);
                 }
                 eventBus.emit('element:added', action.element);
-                eventBus.emit('layer:refresh');
+                emitLayerRefresh();
                 break;
 
             case 'component:detach':
-                // Redo detach: xóa component attrs
                 action.element.removeAttribute('data-component-id');
                 action.element.removeAttribute('data-instance-id');
-                eventBus.emit('element:updated', action.element);
-                eventBus.emit('layer:refresh');
+                emitElementUpdated(action.element);
+                emitLayerRefresh();
                 break;
 
-            // ── Page operations ────────────────────────────────────────────────
             case 'page:add':
-                // Redo page add: tạo lại trang (không push history)
-                // Restore từ snapshot nếu có, hoặc addPage mới
                 if (action.pageSnapshot) {
                     this.editor.pageManager._restorePageFromSnapshot(
                         action.pageSnapshot,
@@ -355,12 +342,10 @@ export class History {
                 break;
 
             case 'page:delete':
-                // Redo page delete: xóa trang lại
                 this.editor.pageManager.deletePage(action.pageId, { pushHistory: false });
                 break;
 
             case 'page:rename':
-                // Redo rename: đặt lại tên mới
                 this.editor.pageManager.renamePage(action.pageId, action.after, { pushHistory: false });
                 break;
         }
@@ -368,8 +353,19 @@ export class History {
 
     /** Xóa toàn bộ history */
     clear() {
+        this._releaseElementReferences(this.undoStack);
+        this._releaseElementReferences(this.redoStack);
         this.undoStack = [];
         this.redoStack = [];
         eventBus.emit('history:changed', { canUndo: false, canRedo: false });
+    }
+
+    _releaseElementReferences(stack) {
+        for (let i = 0; i < stack.length; i++) {
+            const action = stack[i];
+            if (action && action.element && action.element.remove) {
+                action.element = null;
+            }
+        }
     }
 }
