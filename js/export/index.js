@@ -74,15 +74,16 @@ export class ExportManager {
         const tabNames = ['HTML', 'CSS', 'JSON', 'SEO'];
         tabNames.forEach((name, i) => {
             const tab = document.createElement('div');
+            tab.className = 'export-tab';
+            tab.dataset.exportTab = name.toLowerCase();
             tab.style.cssText = `
                 padding: 10px 20px; cursor: pointer; color: ${EXPORT_TAB_COLOR};
                 border-bottom: 2px solid transparent; font-size: 12px; user-select: none;
             `;
             if (i === 0) { tab.style.color = EXPORT_TAB_ACTIVE_COLOR; tab.style.borderBottomColor = EXPORT_TAB_ACTIVE_COLOR; }
             tab.textContent = name;
-            tab.dataset.exportTab = name.toLowerCase();
             tab.addEventListener('click', () => {
-                tabs.querySelectorAll('div').forEach(t => {
+                tabs.querySelectorAll('.export-tab').forEach(t => {
                     t.style.color = EXPORT_TAB_COLOR;
                     t.style.borderBottomColor = 'transparent';
                 });
@@ -114,7 +115,7 @@ export class ExportManager {
 
         const btnDownload = createButton('Download', EXPORT_DOWNLOAD_BTN_BG, EXPORT_DOWNLOAD_BTN_COLOR);
         btnDownload.addEventListener('click', () => {
-            const activeTab = tabs.querySelector('div[style*="rgb(0, 120, 212)"]');
+            const activeTab = tabs.querySelector('[data-export-tab]');
             const type = activeTab?.dataset.exportTab || 'html';
             if (type === 'seo') return;
             const ext = { html: 'html', css: 'css', json: 'json' }[type] || 'html';

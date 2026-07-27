@@ -26,12 +26,17 @@ export function createDOM(def, instanceId) {
     root.dataset.instanceId = instanceId;
     root.dataset.name = def.name;
 
-    regenIds(root);
+    const idMap = regenIds(root);
 
     if (def.bpStyles) {
-        Object.entries(def.bpStyles).forEach(([id, styles]) => {
-            const el = root.id === id ? root : root.querySelector(`#${CSS.escape(id)}`);
-            if (el) el.__bpStyles = cloneDeep(styles);
+        const remapped = {};
+        Object.entries(def.bpStyles).forEach(([oldId, styles]) => {
+            const newId = idMap.get(oldId) || oldId;
+            remapped[newId] = cloneDeep(styles);
+        });
+        Object.entries(remapped).forEach(([id, styles]) => {
+            const el = id === root.id ? root : root.querySelector(`#${CSS.escape(id)}`);
+            if (el) el.__bpStyles = styles;
         });
     }
 
@@ -39,10 +44,20 @@ export function createDOM(def, instanceId) {
 }
 
 export function regenIds(el) {
-    el.id = generateElementId();
+    const oldId = el.id;
+    const newId = generateElementId();
+    el.id = newId;
+    const mapping = new Map();
+    if (oldId) mapping.set(oldId, newId);
+
     el.querySelectorAll('[data-editor-element]').forEach(child => {
-        child.id = generateElementId();
+        const childOldId = child.id;
+        const childNewId = generateElementId();
+        child.id = childNewId;
+        if (childOldId) mapping.set(childOldId, childNewId);
     });
+
+    return mapping;
 }
 
 export function getInstances(editor, componentId) {

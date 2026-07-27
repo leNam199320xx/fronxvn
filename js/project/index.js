@@ -91,6 +91,14 @@ export class ProjectManager {
 
     /** Clear auto-save (reset project) */
     clearAutoSave() {
+        this._clearAutoSaveTimer();
         storageRemove(this.autoSaveKey);
+    }
+
+    _clearAutoSaveTimer() {
+        if (this._autoSaveTimer) {
+            clearTimeout(this._autoSaveTimer);
+            this._autoSaveTimer = null;
+        }
     }
 }

@@ -303,7 +303,7 @@ export class ContextMenu {
         this.menu.style.top = y + 'px';
         this.menu.classList.add('visible');
 
-        const rect = CanvasAPI.getElementRect(this.menu);
+        const rect = this.menu.getBoundingClientRect();
         if (rect.right > window.innerWidth) {
             this.menu.style.left = (x - rect.width) + 'px';
         }

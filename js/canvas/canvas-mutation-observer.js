@@ -47,6 +47,7 @@ export class CanvasMutationObserver {
         eventBus.on('element:added',   (el) => this._recentEmits.set(el, Date.now()));
         eventBus.on('element:removed', (el) => this._recentEmits.set(el, Date.now()));
         eventBus.on('element:updated', (el) => this._recentEmits.set(el, Date.now()));
+        eventBus.on('element:deleted', (el) => this._recentEmits.set(el, Date.now()));
     }
 
     /** Disconnect the MutationObserver and clear pending work. */

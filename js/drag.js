@@ -94,6 +94,7 @@ export class Drag {
         }
 
         const target = e.target;
+        if (!target) return;
         const el = CanvasAPI.closest(target, '[data-editor-element]');
 
         if (el && this.editor.selection.isSelected(el)) {

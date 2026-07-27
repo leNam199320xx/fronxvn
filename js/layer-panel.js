@@ -255,12 +255,11 @@ export class LayerPanel {
 
     /** Highlight các layer items đang được chọn */
     _highlightLayers() {
-        if (!this._layerItems) {
-            this._layerItems = this.container.querySelectorAll('.layer-item');
-        }
-        const selectedIds = new Set(this.selectedElements.map(el => el.id));
-        for (let i = 0; i < this._layerItems.length; i++) {
-            const item = this._layerItems[i];
+        const layerItems = this.container.querySelectorAll('.layer-item');
+        if (layerItems.length === 0) return;
+        const selectedIds = new Set(this.selectedElements.map(el => el && el.id).filter(Boolean));
+        for (let i = 0; i < layerItems.length; i++) {
+            const item = layerItems[i];
             if (selectedIds.has(item.dataset.elementId)) {
                 item.classList.add('selected');
             } else {

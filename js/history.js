@@ -47,6 +47,19 @@ export class History {
         });
     }
 
+    _isElementAlive(el) {
+        return !!el && el.isConnected;
+    }
+
+    _validParent(parent) {
+        return !!parent && parent.isConnected;
+    }
+
+    _fallbackParent(parent) {
+        if (this._validParent(parent)) return parent;
+        return this.editor.canvas;
+    }
+
     /** Thêm action vào history */
     push(action) {
         debug.action('history', 'push', action);
@@ -102,6 +115,7 @@ export class History {
     _revert(action) {
         switch (action.type) {
             case 'move':
+                if (!this._isElementAlive(action.element)) break;
                 setElementPosition(action.element, action.before.left, action.before.top);
                 syncBreakpointStyles(this.editor.breakpointManager, action.element, [
                     { prop: 'left', value: action.before.left + 'px' },
@@ -112,6 +126,7 @@ export class History {
                 break;
 
             case 'resize':
+                if (!this._isElementAlive(action.element)) break;
                 setElementPosition(action.element, action.before.left, action.before.top);
                 setElementSize(action.element, action.before.width, action.before.height);
                 syncBreakpointStyles(this.editor.breakpointManager, action.element, [
@@ -125,11 +140,13 @@ export class History {
                 break;
 
             case 'style':
+                if (!this._isElementAlive(action.element)) break;
                 setElementStyleProp(action.element, action.prop, action.before);
                 emitElementUpdated(action.element);
                 break;
 
             case 'css-bulk':
+                if (!this._isElementAlive(action.element)) break;
                 action.element.removeAttribute('style');
                 (action.before || '').split('\n').forEach(line => {
                     const clean = line.trim().replace(/;$/, '');
@@ -147,28 +164,34 @@ export class History {
                 break;
 
             case 'delete':
-                if (action.nextSibling && action.parent.contains(action.nextSibling)) {
-                    insertElementBefore(action.element, action.nextSibling, action.parent);
+                if (!this._isElementAlive(action.element)) break;
+                const delParent = this._fallbackParent(action.parent);
+                if (action.nextSibling && delParent.contains(action.nextSibling)) {
+                    insertElementBefore(action.element, action.nextSibling, delParent);
                 } else {
-                    appendElement(action.element, action.parent);
+                    appendElement(action.element, delParent);
                 }
                 eventBus.emit('element:added', action.element);
                 emitLayerRefresh();
                 break;
 
             case 'rotate':
+                if (!this._isElementAlive(action.element)) break;
                 setElementTransform(action.element, action.before);
                 emitElementUpdated(action.element);
                 break;
 
             case 'text-edit':
+                if (!this._isElementAlive(action.element)) break;
                 action.element.innerHTML = action.before;
                 emitElementUpdated(action.element);
                 break;
 
             case 'group': {
+                if (!this._validParent(action.parent)) break;
                 action.children.forEach(child => {
                     const pos = action.positions.find(p => p.el === child);
+                    if (!pos) return;
                     setElementPosition(child, pos.left, pos.top);
                     appendElement(child, action.parent);
                 });
@@ -179,9 +202,12 @@ export class History {
             }
 
             case 'ungroup': {
+                if (!this._validParent(action.parent)) break;
+                if (!this._isElementAlive(action.groupEl)) break;
                 setElementPosition(action.groupEl, action.groupLeft, action.groupTop);
                 action.children.forEach(child => {
                     const pos = action.positions.find(p => p.el === child);
+                    if (!pos) return;
                     setElementPosition(child, pos.relLeft, pos.relTop);
                     appendElement(child, action.groupEl);
                 });
@@ -192,12 +218,19 @@ export class History {
             }
 
             case 'component:insert':
-                removeElement(action.element);
-                eventBus.emit('element:deleted', action.element);
+                if (!this._isElementAlive(action.element)) break;
+                const insertParent = this._fallbackParent(action.parent);
+                if (action.nextSibling && insertParent.contains(action.nextSibling)) {
+                    insertElementBefore(action.element, action.nextSibling, insertParent);
+                } else {
+                    appendElement(action.element, insertParent);
+                }
+                eventBus.emit('element:added', action.element);
                 emitLayerRefresh();
                 break;
 
             case 'component:detach':
+                if (!this._isElementAlive(action.element)) break;
                 action.element.dataset.componentId = action.componentId;
                 action.element.dataset.instanceId  = action.instanceId;
                 emitElementUpdated(action.element);
@@ -225,6 +258,7 @@ export class History {
     _apply(action) {
         switch (action.type) {
             case 'move':
+                if (!this._isElementAlive(action.element)) break;
                 setElementPosition(action.element, action.after.left, action.after.top);
                 syncBreakpointStyles(this.editor.breakpointManager, action.element, [
                     { prop: 'left', value: action.after.left + 'px' },
@@ -235,6 +269,7 @@ export class History {
                 break;
 
             case 'resize':
+                if (!this._isElementAlive(action.element)) break;
                 setElementPosition(action.element, action.after.left, action.after.top);
                 setElementSize(action.element, action.after.width, action.after.height);
                 syncBreakpointStyles(this.editor.breakpointManager, action.element, [
@@ -248,11 +283,13 @@ export class History {
                 break;
 
             case 'style':
+                if (!this._isElementAlive(action.element)) break;
                 setElementStyleProp(action.element, action.prop, action.after);
                 emitElementUpdated(action.element);
                 break;
 
             case 'css-bulk':
+                if (!this._isElementAlive(action.element)) break;
                 action.element.removeAttribute('style');
                 (action.after || '').split('\n').forEach(line => {
                     const clean = line.trim().replace(/;$/, '');
@@ -264,34 +301,40 @@ export class History {
                 break;
 
             case 'add':
-                if (action.nextSibling && action.parent.contains(action.nextSibling)) {
-                    insertElementBefore(action.element, action.nextSibling, action.parent);
+                const parent = this._fallbackParent(action.parent);
+                if (action.nextSibling && parent.contains(action.nextSibling)) {
+                    insertElementBefore(action.element, action.nextSibling, parent);
                 } else {
-                    appendElement(action.element, action.parent);
+                    appendElement(action.element, parent);
                 }
                 eventBus.emit('element:added', action.element);
                 emitLayerRefresh();
                 break;
 
             case 'delete':
+                if (!this._isElementAlive(action.element)) break;
                 removeElement(action.element);
                 eventBus.emit('element:deleted', action.element);
                 emitLayerRefresh();
                 break;
 
             case 'rotate':
+                if (!this._isElementAlive(action.element)) break;
                 setElementTransform(action.element, action.after);
                 emitElementUpdated(action.element);
                 break;
 
             case 'text-edit':
+                if (!this._isElementAlive(action.element)) break;
                 action.element.innerHTML = action.after;
                 emitElementUpdated(action.element);
                 break;
 
             case 'group': {
+                if (!this._validParent(action.parent)) break;
                 action.children.forEach(child => {
                     const pos = action.positions.find(p => p.el === child);
+                    if (!pos) return;
                     setElementPosition(child, pos.left - action.groupLeft, pos.top - action.groupTop);
                     appendElement(child, action.groupEl);
                 });
@@ -302,8 +345,10 @@ export class History {
             }
 
             case 'ungroup': {
+                if (!this._validParent(action.parent)) break;
                 action.children.forEach(child => {
                     const pos = action.positions.find(p => p.el === child);
+                    if (!pos) return;
                     setElementPosition(child, pos.relLeft + action.groupLeft, pos.relTop + action.groupTop);
                     insertElementBefore(child, action.groupEl, action.parent);
                 });
@@ -314,16 +359,18 @@ export class History {
             }
 
             case 'component:insert':
-                if (action.nextSibling && action.parent.contains(action.nextSibling)) {
-                    insertElementBefore(action.element, action.nextSibling, action.parent);
+                const compParent = this._fallbackParent(action.parent);
+                if (action.nextSibling && compParent.contains(action.nextSibling)) {
+                    insertElementBefore(action.element, action.nextSibling, compParent);
                 } else {
-                    appendElement(action.element, action.parent);
+                    appendElement(action.element, compParent);
                 }
                 eventBus.emit('element:added', action.element);
                 emitLayerRefresh();
                 break;
 
             case 'component:detach':
+                if (!this._isElementAlive(action.element)) break;
                 action.element.removeAttribute('data-component-id');
                 action.element.removeAttribute('data-instance-id');
                 emitElementUpdated(action.element);

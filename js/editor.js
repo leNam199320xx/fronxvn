@@ -191,11 +191,15 @@ class Editor {
             if (name === null) return;
             const projectName = (name || 'My Project').trim();
             this.projectManager.clearAutoSave();
+            if (this.projectManager._clearAutoSaveTimer) {
+                this.projectManager._clearAutoSaveTimer();
+            }
             this.history.clear();
             this.pageManager.loadPages([]);
             this.canvas.innerHTML = '';
             this.projectMeta.title = projectName;
             document.title = `${projectName} — HTML Visual Editor`;
+            eventBus.clear();
             eventBus.emit('selection:deselect-all');
             eventBus.emit('overlay:clear');
             eventBus.emit('layer:refresh');
@@ -455,6 +459,7 @@ class Editor {
 
         // Scroll event
         this._onCanvasScroll = () => {
+            if (!this.canvasContainer) return;
             eventBus.emit('canvas:scroll', {
                 scrollLeft: this.canvasContainer.scrollLeft,
                 scrollTop: this.canvasContainer.scrollTop
@@ -599,6 +604,7 @@ class Editor {
 
     /** Cập nhật hiển thị zoom */
     _updateZoomDisplay() {
+        if (!this.zoomDisplay) return;
         this.zoomDisplay.textContent = `${Math.round(this.zoom * 100)}%`;
     }
 

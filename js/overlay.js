@@ -292,8 +292,19 @@ export class Overlay {
 
         this._cachedLayerRect = CanvasAPI.getElementRect(this.layer);
 
-        if (this.selectedElements.length === 1) {
-            const el = this.selectedElements[0];
+        const liveElements = this.selectedElements.filter(el => el && el.isConnected);
+        if (liveElements.length === 0) {
+            this.selectedElements = liveElements;
+            this._selectedIds = new Set();
+            this._hideOverlay();
+            this._cachedLayerRect = null;
+            return;
+        }
+        this.selectedElements = liveElements;
+        this._selectedIds = new Set(liveElements.map(el => el.id));
+
+        if (liveElements.length === 1) {
+            const el = liveElements[0];
             if (!ViewportCulling.isVisible(el)) {
                 this.selectionBox.style.display = 'none';
                 this._cachedLayerRect = null;
@@ -302,7 +313,7 @@ export class Overlay {
             this.selectionBox.style.display = 'block';
             this._updateSingleOverlay(el);
         } else {
-            const visible = ViewportCulling.visibleElements(this.selectedElements);
+            const visible = ViewportCulling.visibleElements(liveElements);
             if (visible.length === 0) {
                 this.selectionBox.style.display = 'none';
                 this._cachedLayerRect = null;

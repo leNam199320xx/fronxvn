@@ -43,11 +43,12 @@ export class Clipboard {
 
         elements.forEach(el => {
             const parent = el.parentNode;
+            const nextSibling = el.nextSibling;
             eventBus.emit('history:push', {
                 type: 'delete',
                 element: el,
                 parent: parent,
-                nextSibling: el.nextSibling
+                nextSibling: nextSibling
             });
             el.remove();
             eventBus.emit('element:deleted', el);

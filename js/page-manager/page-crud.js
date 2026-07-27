@@ -27,12 +27,8 @@ export function addPage(pages, activePageId, editor, eventBus, opts = {}) {
     const insertIdx = pages.length;
     pages.push(page);
 
-    const newActivePageId = switchPage(pages, activePageId, editor, eventBus, page.id);
-
-    renderTabBar(pages, newActivePageId || page.id, editor, eventBus);
-
     if (opts.pushHistory !== false) {
-        const pageSnapshot = snapshotPage(page, page.id === newActivePageId, (p) => {
+        const snapshot = snapshotPage(page, true, (p) => {
             savePageData(editor, p);
             saveHistoryToPage(editor, p);
         });
@@ -40,7 +36,7 @@ export function addPage(pages, activePageId, editor, eventBus, opts = {}) {
             type: 'page:add',
             pageId: page.id,
             insertIdx,
-            pageSnapshot
+            pageSnapshot: snapshot
         });
     }
 

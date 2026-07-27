@@ -134,19 +134,13 @@ export class BreakpointManager {
     _applyToElement(el, bp) {
         this._initElement(el);
 
-        // Lấy base styles (desktop)
         const base = el.__bpStyles['desktop'] || {};
-
-        // Lấy override của breakpoint hiện tại (nếu không phải desktop)
         const override = bp !== 'desktop' ? (el.__bpStyles[bp] || {}) : {};
-
-        // Merge và áp dụng
         const merged = { ...base, ...override };
 
-        // Reset style trước
-        el.style.cssText = '';
+        const allTracked = new Set([...Object.keys(base), ...Object.keys(override)]);
+        allTracked.forEach(prop => el.style.removeProperty(prop));
 
-        // Áp dụng lại
         Object.entries(merged).forEach(([prop, value]) => {
             el.style.setProperty(prop, value);
         });
