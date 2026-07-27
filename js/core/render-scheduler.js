@@ -34,6 +34,16 @@ export class RenderScheduler {
         this._keys = new Set();
         this._rafId = null;
         this._dirtyState = DirtyState;
+        this._onFrameBegin = null;
+        this._onFrameEnd = null;
+    }
+
+    setOnFrameBegin(fn) {
+        this._onFrameBegin = fn;
+    }
+
+    setOnFrameEnd(fn) {
+        this._onFrameEnd = fn;
     }
 
     /**
@@ -111,8 +121,10 @@ export class RenderScheduler {
         if (this._rafId) return;
         this._rafId = requestAnimationFrame(() => {
             this._rafId = null;
+            if (this._onFrameBegin) this._onFrameBegin();
             FrameCache.beginFrame();
             this.flush();
+            if (this._onFrameEnd) this._onFrameEnd();
         });
     }
 }

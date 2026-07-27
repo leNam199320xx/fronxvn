@@ -11,6 +11,7 @@
 import eventBus from '../event-bus.js';
 import CanvasAPI from './canvas-api.js';
 import DirtyState, { DIRTY } from '../core/dirty-state.js';
+import CanvasDiagnostics from './canvas-diagnostics.js';
 
 const RECENT_EMIT_WINDOW = 150;
 
@@ -59,6 +60,7 @@ export class CanvasMutationObserver {
 
         this._isFlushing = true;
         try {
+            CanvasDiagnostics.trackMutationRecords(records.length);
             let hasRealChanges = false;
             const root = CanvasAPI.getRoot();
             const now = Date.now();

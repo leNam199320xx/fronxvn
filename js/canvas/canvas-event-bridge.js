@@ -5,6 +5,7 @@
  */
 import eventBus from '../event-bus.js';
 import CanvasAPI from './canvas-api.js';
+import CanvasDiagnostics from './canvas-diagnostics.js';
 
 const SUPPORTS_POINTER = typeof window !== 'undefined' && 'PointerEvent' in window;
 
@@ -65,6 +66,7 @@ export class CanvasEventBridge {
     }
 
     _emitPointer(type, e) {
+        CanvasDiagnostics.trackEventBridgeEvent();
         const data = normalizePointer(e);
         data.type = type;
         eventBus.emit('pointer:' + type, data);
@@ -72,6 +74,7 @@ export class CanvasEventBridge {
 
     _emitParentPointer(type, e) {
         if (this._iframe.contains(e.target) || e.target === this._iframe) return;
+        CanvasDiagnostics.trackEventBridgeEvent();
         const data = {
             clientX: e.clientX,
             clientY: e.clientY,
@@ -94,6 +97,7 @@ export class CanvasEventBridge {
     _bindContextMenu() {
         this._doc.addEventListener('contextmenu', (e) => {
             e.preventDefault();
+            CanvasDiagnostics.trackEventBridgeEvent();
             const data = normalizePointer(e);
             data.type = 'contextmenu';
             eventBus.emit('pointer:contextmenu', data);
@@ -105,6 +109,7 @@ export class CanvasEventBridge {
             if (e.ctrlKey) {
                 e.preventDefault();
             }
+            CanvasDiagnostics.trackEventBridgeEvent();
             const { left, top } = CanvasAPI.getIframeRect();
             eventBus.emit('wheel', {
                 clientX: e.clientX + left,
@@ -124,6 +129,7 @@ export class CanvasEventBridge {
 
     _bindKeyboardEvents() {
         const forward = (type) => (e) => {
+            CanvasDiagnostics.trackEventBridgeEvent();
             const synthetic = new KeyboardEvent(type, {
                 bubbles: true,
                 cancelable: true,
@@ -151,10 +157,12 @@ export class CanvasEventBridge {
 
     _bindFocusEvents() {
         this._win.addEventListener('focusin', (e) => {
+            CanvasDiagnostics.trackEventBridgeEvent();
             eventBus.emit('focus:in', { target: e.target, relatedTarget: e.relatedTarget });
         });
 
         this._win.addEventListener('focusout', (e) => {
+            CanvasDiagnostics.trackEventBridgeEvent();
             eventBus.emit('focus:out', { target: e.target, relatedTarget: e.relatedTarget });
         });
     }

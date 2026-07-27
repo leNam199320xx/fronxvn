@@ -6,6 +6,7 @@
  */
 import CanvasHost from './canvas-host.js';
 import FrameCache from '../core/frame-cache.js';
+import CanvasDiagnostics from './canvas-diagnostics.js';
 
 class CanvasAPI {
     getDocument() {
@@ -33,10 +34,12 @@ class CanvasAPI {
     }
 
     query(selector) {
+        CanvasDiagnostics.trackDOMQuery();
         return this.getRoot().querySelector(selector);
     }
 
     queryAll(selector) {
+        CanvasDiagnostics.trackDOMQuery();
         return Array.from(this.getRoot().querySelectorAll(selector));
     }
 
@@ -203,6 +206,7 @@ class CanvasAPI {
         return FrameCache.get('iframeRect', () => {
             const iframe = CanvasHost.getIframe();
             if (!iframe) return { left: 0, top: 0, width: 0, height: 0 };
+            CanvasDiagnostics.trackBoundingClientRect();
             const r = iframe.getBoundingClientRect();
             return { left: r.left, top: r.top, width: r.width, height: r.height };
         });
@@ -211,10 +215,12 @@ class CanvasAPI {
     getRootRect() {
         return FrameCache.get('rootRect', () => {
             const iframe = CanvasHost.getIframe();
+            CanvasDiagnostics.trackBoundingClientRect();
             const r = this.getRoot().getBoundingClientRect();
             if (!iframe) {
                 return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
             }
+            CanvasDiagnostics.trackBoundingClientRect();
             const iRect = iframe.getBoundingClientRect();
             return {
                 left: r.left + iRect.left,
@@ -237,6 +243,7 @@ class CanvasAPI {
             const canvas = this.getRoot();
             if (!container || !canvas) return { left: 0, top: 0, right: 0, bottom: 0 };
 
+            CanvasDiagnostics.trackBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
             const canvasRect = this.getRootRect();
             const zoom = this.getZoom();
@@ -280,10 +287,12 @@ class CanvasAPI {
         if (cacheKey) {
             return FrameCache.get(cacheKey, () => {
                 const iframe = CanvasHost.getIframe();
+                CanvasDiagnostics.trackBoundingClientRect();
                 const r = el.getBoundingClientRect();
                 if (!iframe) {
                     return { left: r.left, top: r.top, width: r.width, height: r.height };
                 }
+                CanvasDiagnostics.trackBoundingClientRect();
                 const iRect = iframe.getBoundingClientRect();
                 return {
                     left: r.left + iRect.left,
@@ -295,10 +304,12 @@ class CanvasAPI {
         }
 
         const iframe = CanvasHost.getIframe();
+        CanvasDiagnostics.trackBoundingClientRect();
         const r = el.getBoundingClientRect();
         if (!iframe) {
             return { left: r.left, top: r.top, width: r.width, height: r.height };
         }
+        CanvasDiagnostics.trackBoundingClientRect();
         const iRect = iframe.getBoundingClientRect();
         return {
             left: r.left + iRect.left,
