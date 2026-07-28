@@ -1,6 +1,7 @@
 import { createSection } from './utils.js';
 import eventBus from '../event-bus.js';
 import CanvasAPI from '../canvas/canvas-api.js';
+import { emitStyleHistory, emitElementUpdated, applyStyle, enableInputs, clearInputs } from '../property/property-utils.js';
 
 const TRANSFORM_FIELDS = [
     { label: 'Rotate', prop: 'rotate', type: 'text', placeholder: '0deg' },
@@ -16,23 +17,19 @@ export function createTransformTab({ editor, eventBus }) {
     function applyProperty(prop, value) {
         if (!selectedElement) return;
         const before = selectedElement.style[prop];
-        CanvasAPI.setStyle(selectedElement, prop, value);
-        if (bpManager) {
-            bpManager.setStyle(selectedElement, prop, value);
-        }
-        eventBus.emit('history:push', { type: 'style', element: selectedElement, prop, before, after: value });
-        eventBus.emit('element:updated', selectedElement);
-        eventBus.emit('element:transform', selectedElement);
+        applyStyle(CanvasAPI, bpManager, selectedElement, prop, value);
+        emitStyleHistory(eventBus, selectedElement, prop, before, value);
+        emitElementUpdated(eventBus, selectedElement);
+        emitElementTransform(eventBus, selectedElement);
     }
 
     function update(el) {
         selectedElement = el;
-        section.querySelectorAll('[data-prop]').forEach(input => {
-            input.disabled = false;
-            input.placeholder = input.dataset.placeholder || '';
-            if (!el) input.value = '';
-        });
-        if (!el) return;
+        enableInputs(section);
+        if (!el) {
+            clearInputs(section);
+            return;
+        }
         const style = el.style;
         section.querySelectorAll('[data-prop]').forEach(input => {
             const prop = input.dataset.prop;

@@ -23,10 +23,16 @@ import debug from './debug.js';
 export class BreakpointManager {
     constructor(editor) {
         this.editor = editor;
-        this.current = 'desktop'; // Breakpoint đang active
+        this.current = 'desktop';
 
         this._bindEvents();
     }
+
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
 
     _bindEvents() {
         // Khi switch breakpoint

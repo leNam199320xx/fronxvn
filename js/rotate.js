@@ -20,6 +20,12 @@ export class Rotate {
         this._bindEvents();
     }
 
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
+
     /** Bind events */
     _bindEvents() {
         eventBus.on('pointer:mousedown', (data) => {

@@ -2,25 +2,15 @@ import { createSection, toHex } from './utils.js';
 import eventBus from '../event-bus.js';
 import CanvasAPI from '../canvas/canvas-api.js';
 import { DEFAULT_COLOR_FALLBACK } from '../config.js';
+import { XY_GROUP, WH_GROUP, MIN_MAX_GROUP, MIN_MAX_H_GROUP } from '../property/property-groups.js';
+import { emitStyleHistory, emitElementUpdated, applyStyle, enableInputs, clearInputs } from '../property/property-utils.js';
 
 const LAYOUT_FIELDS = [
     { label: 'Position', prop: 'position', type: 'select', options: ['', 'static', 'relative', 'absolute', 'fixed', 'sticky'] },
-    { label: 'X-Y', type: 'group', fields: [
-        { label: 'X', prop: 'left', type: 'text', numeric: true, unit: 'px', placeholder: '0px', short: true },
-        { label: 'Y', prop: 'top', type: 'text', numeric: true, unit: 'px', placeholder: '0px', short: true }
-    ]},
-    { label: 'W-H', type: 'group', fields: [
-        { label: 'W', prop: 'width', type: 'text', numeric: true, unit: 'px', placeholder: 'auto', short: true },
-        { label: 'H', prop: 'height', type: 'text', numeric: true, unit: 'px', placeholder: 'auto', short: true }
-    ]},
-    { label: 'Min-Max', type: 'group', fields: [
-        { label: 'Min W', prop: 'minWidth', type: 'text', placeholder: 'none', short: true },
-        { label: 'Max W', prop: 'maxWidth', type: 'text', placeholder: 'none', short: true }
-    ]},
-    { label: 'Min-Max H', type: 'group', fields: [
-        { label: 'Min H', prop: 'minHeight', type: 'text', placeholder: 'none', short: true },
-        { label: 'Max H', prop: 'maxHeight', type: 'text', placeholder: 'none', short: true }
-    ]},
+    XY_GROUP,
+    WH_GROUP,
+    MIN_MAX_GROUP,
+    MIN_MAX_H_GROUP,
     { label: 'Display', prop: 'display', type: 'select', options: ['', 'block', 'inline', 'inline-block', 'flex', 'grid', 'none'] },
     { label: 'Direction', prop: 'flexDirection', type: 'select', options: ['', 'row', 'row-reverse', 'column', 'column-reverse'] },
     { label: 'Justify', prop: 'justifyContent', type: 'select', options: ['', 'flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly'] },
@@ -46,11 +36,7 @@ export function createLayoutTab({ editor, eventBus }) {
             }
         }
 
-        CanvasAPI.setStyle(selectedElement, prop, value);
-
-        if (bpManager) {
-            bpManager.setStyle(selectedElement, prop, value);
-        }
+        applyStyle(CanvasAPI, bpManager, selectedElement, prop, value);
 
         if (prop === 'display') {
             handleDisplayChange(selectedElement, value);
@@ -60,15 +46,8 @@ export function createLayoutTab({ editor, eventBus }) {
             handlePositionChange(selectedElement, value);
         }
 
-        eventBus.emit('history:push', {
-            type: 'style',
-            element: selectedElement,
-            prop,
-            before,
-            after: value
-        });
-
-        eventBus.emit('element:updated', selectedElement);
+        emitStyleHistory(eventBus, selectedElement, prop, before, value);
+        emitElementUpdated(eventBus, selectedElement);
     }
 
     function handleDisplayChange(el, displayValue) {
@@ -105,16 +84,11 @@ export function createLayoutTab({ editor, eventBus }) {
 
     function update(el) {
         selectedElement = el;
-        section.querySelectorAll('[data-prop]').forEach(input => {
-            input.disabled = false;
-            input.placeholder = input.dataset.placeholder || '';
-            if (input.type === 'color') {
-                input.value = DEFAULT_COLOR_FALLBACK;
-            } else if (!el) {
-                input.value = '';
-            }
-        });
-        if (!el) return;
+        enableInputs(section);
+        if (!el) {
+            clearInputs(section, DEFAULT_COLOR_FALLBACK);
+            return;
+        }
 
         const style = el.style;
         const computed = CanvasAPI.getComputedStyle(el);

@@ -6,9 +6,9 @@
  */
 import eventBus from './event-bus.js';
 import { ELEMENT_MIN_SIZE } from './config.js';
-import RenderScheduler, { PRIORITY } from '../core/render-scheduler.js';
+import RenderScheduler, { PRIORITY } from './core/render-scheduler.js';
 import CoordinateSystem from './canvas/coordinate.js';
-import DirtyState, { DIRTY } from '../core/dirty-state.js';
+import DirtyState, { DIRTY } from './core/dirty-state.js';
 import CanvasAPI from './canvas/canvas-api.js';
 
 export class Resize {
@@ -25,6 +25,12 @@ export class Resize {
 
         this._bindEvents();
     }
+
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
 
     /** Bind events */
     _bindEvents() {

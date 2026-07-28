@@ -1,10 +1,11 @@
 import eventBus from '../event-bus.js';
-import { generatePageId, findPage, snapshotPage } from './utils.js';
+import { generatePageId, findPage } from './utils.js';
 import { cloneDeep } from '../core/clone.js';
 import { savePageData } from './page-storage.js';
 import { saveHistoryToPage } from './page-history.js';
 import { switchPage } from './page-switch.js';
 import { renderTabBar } from './page-tabs.js';
+import { createSnapshot } from '../history/snapshot.js';
 import debug from '../debug.js';
 
 export function addPage(pages, activePageId, editor, eventBus, opts = {}) {
@@ -28,7 +29,7 @@ export function addPage(pages, activePageId, editor, eventBus, opts = {}) {
     pages.push(page);
 
     if (opts.pushHistory !== false) {
-        const snapshot = snapshotPage(page, true, (p) => {
+        const snapshot = createSnapshot(page, true, (p) => {
             savePageData(editor, p);
             saveHistoryToPage(editor, p);
         });
@@ -51,7 +52,7 @@ export function deletePage(pages, activePageId, editor, eventBus, pageId, opts =
     const idx = pages.findIndex(p => p.id === pageId);
     if (idx === -1) return;
 
-    const pageSnapshot = snapshotPage(pages[idx], pages[idx].id === activePageId, (p) => {
+    const pageSnapshot = createSnapshot(pages[idx], pages[idx].id === activePageId, (p) => {
         savePageData(editor, p);
         saveHistoryToPage(editor, p);
     });

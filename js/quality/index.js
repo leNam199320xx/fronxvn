@@ -19,14 +19,18 @@ export class QualityEngine {
     constructor(editor) {
         this.editor = editor;
 
-        /** @type {Issue[]} */
         this.issues = [];
-
-        /** @type {number} 0–100 */
         this.score = 100;
 
         this._scanTimer = null;
         this._scanDelay = QUALITY_SCAN_DELAY;
+    }
+
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
 
         this._bindEvents();
     }

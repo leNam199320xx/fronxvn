@@ -11,10 +11,16 @@ import debug from './debug.js';
 export class Clipboard {
     constructor(editor) {
         this.editor = editor;
-        this.clipboardData = null; // Lưu HTML clone
+        this.clipboardData = null;
 
         this._bindEvents();
     }
+
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
 
     /** Bind events */
     _bindEvents() {

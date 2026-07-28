@@ -26,6 +26,14 @@ export class TemplateManager {
         this._bindEvents();
     }
 
+    init() {}
+
+    refresh() {
+        this._render();
+    }
+
+    destroy() {}
+
     _bindEvents() {
         eventBus.on('template:save', () => this._saveSelectionAsUserTemplate());
     }

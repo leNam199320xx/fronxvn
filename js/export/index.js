@@ -36,6 +36,12 @@ export class ExportManager {
         this._bindEvents();
     }
 
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
+
     /** Bind events */
     _bindEvents() {
         eventBus.on('export:show', () => this._showExportDialog());

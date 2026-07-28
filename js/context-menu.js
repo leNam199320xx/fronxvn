@@ -18,6 +18,12 @@ export class ContextMenu {
         this._bindEvents();
     }
 
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
+
     /** Tạo menu items */
     _buildMenu() {
         this._items = [

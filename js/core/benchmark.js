@@ -8,7 +8,7 @@ import CanvasAPI from '../canvas/canvas-api.js';
 import CoordinateSystem from '../canvas/coordinate.js';
 import RenderScheduler, { PRIORITY } from './render-scheduler.js';
 import DirtyState, { DIRTY } from './dirty-state.js';
-import ViewportCulling from './core/viewport-culling.js';
+import ViewportCulling from './viewport-culling.js';
 
 const SIZES = [100, 500, 1000, 3000, 5000];
 const CATEGORIES = [

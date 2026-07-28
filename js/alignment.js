@@ -17,6 +17,12 @@ export class Alignment {
         this._bindEvents();
     }
 
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
+
     /** Bind events */
     _bindEvents() {
         eventBus.on('align', (direction) => this.align(direction));

@@ -1,6 +1,7 @@
 import { createSection } from './utils.js';
 import eventBus from '../event-bus.js';
 import CanvasAPI from '../canvas/canvas-api.js';
+import { emitStyleHistory, emitElementUpdated, applyStyle, enableInputs, clearInputs } from '../property/property-utils.js';
 
 const MARGIN_FIELDS = [
     { label: 'Top', prop: 'marginTop', type: 'text', numeric: true, unit: 'px', placeholder: '0', short: true },
@@ -30,22 +31,16 @@ export function createSpacingTab({ editor, eventBus }) {
                 value = value + 'px';
             }
         }
-        CanvasAPI.setStyle(selectedElement, prop, value);
-        if (bpManager) {
-            bpManager.setStyle(selectedElement, prop, value);
-        }
-        eventBus.emit('history:push', { type: 'style', element: selectedElement, prop, before, after: value });
-        eventBus.emit('element:updated', selectedElement);
+        applyStyle(CanvasAPI, bpManager, selectedElement, prop, value);
+        emitStyleHistory(eventBus, selectedElement, prop, before, value);
+        emitElementUpdated(eventBus, selectedElement);
     }
 
     function update(el) {
         selectedElement = el;
         [marginSection, paddingSection].forEach(section => {
-            section.querySelectorAll('[data-prop]').forEach(input => {
-                input.disabled = false;
-                input.placeholder = input.dataset.placeholder || '';
-                if (!el) input.value = '';
-            });
+            enableInputs(section);
+            if (!el) clearInputs(section);
         });
         if (!el) return;
         const style = el.style;

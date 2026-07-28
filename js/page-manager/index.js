@@ -23,14 +23,17 @@ export class PageManager {
     constructor(editor) {
         this.editor = editor;
 
-        /** @type {Array<PageObject>} */
         this._pages = [];
-
-        /** @type {string|null} */
         this._activePageId = null;
 
         this._bindEvents();
     }
+
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
 
     // ─────────────────────────────────────────────
     //  Public API

@@ -14,6 +14,12 @@ export class GroupManager {
         this._bindEvents();
     }
 
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
+
     /** Bind events */
     _bindEvents() {
         eventBus.on('group:group',   () => this.group());

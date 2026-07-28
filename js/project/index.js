@@ -23,6 +23,12 @@ export class ProjectManager {
         setTimeout(() => this._autoLoad(), AUTOLOAD_DELAY_MS);
     }
 
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
+
     /** Bind events */
     _bindEvents() {
         eventBus.on('project:save', () => this.saveToFile());

@@ -2,6 +2,7 @@ import { createSection } from './utils.js';
 import eventBus from '../event-bus.js';
 import CanvasAPI from '../canvas/canvas-api.js';
 import { DEFAULT_COLOR_FALLBACK } from '../config.js';
+import { emitStyleHistory, emitElementUpdated, applyStyle, enableInputs, clearInputs } from '../property/property-utils.js';
 
 const BACKGROUND_FIELDS = [
     { label: 'BG Color', prop: 'backgroundColor', type: 'color' },
@@ -18,23 +19,18 @@ export function createBackgroundTab({ editor, eventBus }) {
     function applyProperty(prop, value) {
         if (!selectedElement) return;
         const before = selectedElement.style[prop];
-        CanvasAPI.setStyle(selectedElement, prop, value);
-        if (bpManager) {
-            bpManager.setStyle(selectedElement, prop, value);
-        }
-        eventBus.emit('history:push', { type: 'style', element: selectedElement, prop, before, after: value });
-        eventBus.emit('element:updated', selectedElement);
+        applyStyle(CanvasAPI, bpManager, selectedElement, prop, value);
+        emitStyleHistory(eventBus, selectedElement, prop, before, value);
+        emitElementUpdated(eventBus, selectedElement);
     }
 
     function update(el) {
         selectedElement = el;
-        section.querySelectorAll('[data-prop]').forEach(input => {
-            input.disabled = false;
-            input.placeholder = input.dataset.placeholder || '';
-            if (input.type === 'color') input.value = DEFAULT_COLOR_FALLBACK;
-            else if (!el) input.value = '';
-        });
-        if (!el) return;
+        enableInputs(section);
+        if (!el) {
+            clearInputs(section, DEFAULT_COLOR_FALLBACK);
+            return;
+        }
         const style = el.style;
         const computed = CanvasAPI.getComputedStyle(el);
         section.querySelectorAll('[data-prop]').forEach(input => {

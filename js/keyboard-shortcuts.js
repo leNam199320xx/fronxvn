@@ -9,6 +9,12 @@ export class KeyboardShortcuts {
         this._bindEvents();
     }
 
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
+
     _bindEvents() {
         document.addEventListener('keydown', (e) => this._handleKeydown(e));
     }

@@ -1,6 +1,8 @@
 import eventBus from '../event-bus.js';
 import CanvasAPI from '../canvas/canvas-api.js';
 import { EXPORT_COPY_RESET_DELAY } from '../config.js';
+import { serializeElementCSS, parseCSSText } from '../property/property-parser.js';
+import { emitElementUpdated } from '../property/property-utils.js';
 
 export function createResponsiveTab({ editor, eventBus }) {
     const panel = document.getElementById('panel-left');
@@ -96,42 +98,12 @@ export function createResponsiveTab({ editor, eventBus }) {
         return { section, textarea, errorEl };
     }
 
-    function serializeElementCSS(el) {
-        const lines = [];
-        const style = el.style;
-        for (let i = 0; i < style.length; i++) {
-            const prop = style[i];
-            const value = style.getPropertyValue(prop);
-            if (value) lines.push(`${prop}: ${value};`);
-        }
-        return lines.join('\n');
-    }
-
     function applyCSSFromEditor(css) {
         if (!selectedElement) return;
         const { errorEl } = cssEditor;
         if (errorEl) errorEl.style.display = 'none';
         const beforeCSS = serializeElementCSS(selectedElement);
-        const errors = [];
-        const applied = {};
-
-        css.split('\n').forEach((line, lineNum) => {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('/*')) return;
-            const clean = trimmed.endsWith(';') ? trimmed.slice(0, -1) : trimmed;
-            const colonIdx = clean.indexOf(':');
-            if (colonIdx === -1) {
-                errors.push(`Line ${lineNum + 1}: missing ":"`);
-                return;
-            }
-            const prop = clean.slice(0, colonIdx).trim();
-            const value = clean.slice(colonIdx + 1).trim();
-            if (!prop) {
-                errors.push(`Line ${lineNum + 1}: empty property`);
-                return;
-            }
-            applied[prop] = value;
-        });
+        const { applied, errors } = parseCSSText(css);
 
         if (errors.length > 0 && errorEl) {
             errorEl.textContent = errors.join(' | ');
@@ -165,7 +137,7 @@ export function createResponsiveTab({ editor, eventBus }) {
             after: css
         });
 
-        eventBus.emit('element:updated', selectedElement);
+        emitElementUpdated(eventBus, selectedElement);
     }
 
     function updateCSSEditor(section) {

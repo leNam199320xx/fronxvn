@@ -15,6 +15,14 @@ export class ComponentPanel {
         this._bindEvents();
     }
 
+    init() {}
+
+    refresh() {
+        this._render();
+    }
+
+    destroy() {}
+
     // ─────────────────────────────────────────────
     //  Events
     // ─────────────────────────────────────────────

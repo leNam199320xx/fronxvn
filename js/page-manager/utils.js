@@ -1,5 +1,6 @@
 import { generatePageId } from '../core/ids.js';
 import { cloneDeep } from '../core/clone.js';
+import { createSnapshot } from '../history/snapshot.js';
 
 export { generatePageId };
 
@@ -30,16 +31,7 @@ export function findPage(pages, id) {
 }
 
 export function snapshotPage(page, isActive, saveStateFn) {
-    if (isActive) {
-        saveStateFn(page);
-    }
-    return {
-        id: page.id,
-        name: page.name,
-        html: page.html,
-        bpStyles: cloneDeep(page.bpStyles || {}),
-        meta: cloneDeep(page.meta || {})
-    };
+    return createSnapshot(page, isActive, saveStateFn);
 }
 
 export function restorePageFromSnapshot(snapshot, insertIdx, pages) {

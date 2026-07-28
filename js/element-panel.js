@@ -18,6 +18,14 @@ export class ElementPanel {
         this._render();
     }
 
+    init() {}
+
+    refresh() {
+        this._render();
+    }
+
+    destroy() {}
+
     /** Bind events */
     _bindEvents() {
         eventBus.on('element:selected', (el) => {

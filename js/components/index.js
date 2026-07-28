@@ -16,6 +16,12 @@ export class ComponentManager {
         this._bindEvents();
     }
 
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
+
     saveComponent(name) {
         debug.action('component', 'saveComponent', { name });
         const elements = this.editor.selection.getSelectedAll();

@@ -110,16 +110,19 @@ export class ThemeManager {
         this.editor    = editor;
         this.container = document.querySelector('#panel-right');
 
-        /** Current token values — starts from defaults */
         this._tokens = { ...THEME_DEFAULTS };
-
-        /** <style> element injected into canvas iframe / document */
         this._styleEl = null;
 
         this._ensureStyleEl();
         this._applyAll();
         this._bindEvents();
     }
+
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
 
     // ─────────────────────────────────────────────
     //  Public API

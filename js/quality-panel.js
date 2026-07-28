@@ -5,8 +5,8 @@
  */
 import eventBus from './event-bus.js';
 import { QUALITY_SCORE_INITIAL, QUALITY_RESCAN_AFTER_FIX_DELAY, QUALITY_SCORE_GOOD, QUALITY_SCORE_WARN } from './config.js';
-import { escapeHtml } from '../export/utils.js';
-import RenderPipeline from '../core/render-pipeline.js';
+import { escapeHtml } from './export/utils.js';
+import RenderPipeline from './core/render-pipeline.js';
 
 const SEVERITY_ICON  = { error: '🔴', warning: '🟡', info: '🔵' };
 const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
@@ -25,6 +25,14 @@ export class QualityPanel {
         this._bindEvents();
         this._registerPipeline();
     }
+
+    init() {}
+
+    refresh() {
+        this._render();
+    }
+
+    destroy() {}
 
     _registerPipeline() {
         RenderPipeline.on('pipeline-quality', () => this._render());

@@ -12,22 +12,35 @@ import CanvasAPI from './canvas/canvas-api.js';
 import { SNAP_THRESHOLD, DRAG_MIN_DISTANCE } from './config.js';
 import { generateElementId } from './core/ids.js';
 import { cloneDeep } from './core/clone.js';
-import RenderScheduler, { PRIORITY } from '../core/render-scheduler.js';
+import RenderScheduler, { PRIORITY } from './core/render-scheduler.js';
 import CoordinateSystem from './canvas/coordinate.js';
-import DirtyState, { DIRTY } from '../core/dirty-state.js';
-import ViewportCulling from '../core/viewport-culling.js';
+import DirtyState, { DIRTY } from './core/dirty-state.js';
+import ViewportCulling from './core/viewport-culling.js';
 
 export class Drag {
     constructor(editor) {
         this.editor = editor;
         this.isDragging = false;
         this.isRubberBanding = false;
-        this.dragElements = [];   // Mảng elements đang drag
+        this.dragElements = [];
         this.startX = 0;
         this.startY = 0;
-        this.startPositions = []; // [{el, left, top}]
+        this.startPositions = [];
         this.guides = [];
         this.snapThreshold = SNAP_THRESHOLD;
+        this._snapOthers = [];
+        this._currentSnap = null;
+        this._dragStartPositions = [];
+        this._dragContainerRect = null;
+
+        this._bindEvents();
+    }
+
+    init() {}
+
+    refresh() {}
+
+    destroy() {}
         this._rafId = null;
         this._snapVersion = 0;
         this._snapOthers = [];
