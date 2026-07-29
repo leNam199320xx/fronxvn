@@ -1,0 +1,12 @@
+.editor-toolbar .zoom-display {
+    color: var(--text-secondary);
+    min-width: 50px;
+    text-align: center;
+}
+
+.editor-toolbar .coords-display {
+    color: var(--text-secondary);
+    margin-left: auto;
+    min-width: 100px;
+    text-align: right;
+}

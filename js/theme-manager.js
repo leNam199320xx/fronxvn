@@ -183,7 +183,7 @@ export class ThemeManager {
     _ensureStyleEl() {
         let el = CanvasAPI.getDocument().getElementById('theme-variables');
         if (!el) {
-            el = CanvasAPI.createElement('style');
+            el = CanvasAPI.create('style');
             el.id = 'theme-variables';
             CanvasAPI.getDocument().head.appendChild(el);
         }

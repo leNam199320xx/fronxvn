@@ -57,9 +57,9 @@ export class CanvasEventBridge {
         this._handlers.clear();
     }
 
-    _addHandler(target, type, handler) {
+    _addHandler(target, type, handler, options) {
         this._handlers.set(handler, [target, type, handler]);
-        target.addEventListener(type, handler);
+        target.addEventListener(type, handler, options);
     }
 
     _bindPointerEvents() {
@@ -146,7 +146,7 @@ export class CanvasEventBridge {
                 target: e.target
             });
         };
-        this._addHandler(this._doc, 'wheel', handler);
+        this._addHandler(this._doc, 'wheel', handler, { passive: false });
         this._emitWheel = handler;
     }
 

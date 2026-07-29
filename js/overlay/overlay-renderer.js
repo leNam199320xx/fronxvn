@@ -21,6 +21,7 @@ export class OverlayRenderer {
     /** Ẩn overlay */
     _hideOverlay() {
         const overlay = this.overlay;
+        clearTimeout(overlay._hideLabelTimer);
         overlay.selectionBox.style.display = 'none';
         this._setHandlesVisible(false);
         overlay.multiBadge.style.display = 'none';
@@ -144,7 +145,7 @@ export class OverlayRenderer {
         overlay.selectionBox.style.width = (maxRight - minLeft) + 'px';
         overlay.selectionBox.style.height = (maxBottom - minTop) + 'px';
 
-        overlay.multiBadge.textContent = `${overlay.selectedElements.length} selected`;
+        overlay.multiBadge.textContent = `${visibleElements.length} selected`;
     }
 
     /**

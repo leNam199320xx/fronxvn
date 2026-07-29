@@ -1,7 +1,8 @@
 /**
  * CanvasHost - Manages the iframe host for the editable canvas.
  */
-import CanvasStyleLoader from './canvas-style-loader.js';
+import { CanvasStyleLoader } from './canvas-style-loader.js';
+import { showNotification } from '../ui/toast.js';
 
 export class CanvasHost {
     constructor() {
@@ -38,6 +39,7 @@ export class CanvasHost {
                     await CanvasStyleLoader.load(doc);
                 } catch (err) {
                     console.error('[CanvasHost] Style load failed:', err);
+                    showNotification('Failed to load canvas styles. The canvas may appear unstyled.', 'error');
                 }
 
                 const root = doc.createElement('div');

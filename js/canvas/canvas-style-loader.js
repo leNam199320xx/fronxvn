@@ -5,10 +5,10 @@
  * - Caches fetched content to avoid redundant network requests
  */
 const PATHS = Object.freeze({
-    reset: './styles/reset.css',
-    editor: './styles/editor.css',
-    'future-theme-light': './styles/future-theme-light.css',
-    'future-theme-dark': './styles/future-theme-dark.css'
+    reset: './js/canvas/styles/reset.css',
+    editor: './js/canvas/styles/editor.css',
+    'future-theme-light': './js/canvas/styles/future-theme-light.css',
+    'future-theme-dark': './js/canvas/styles/future-theme-dark.css'
 });
 
 const cache = new Map();

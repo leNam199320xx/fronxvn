@@ -1,4 +1,5 @@
 import eventBus from '../event-bus.js';
+import { showNotification } from '../ui/toast.js';
 
 export function loadFromFile(editor, onProjectLoaded, scheduleAutoSave) {
     const input = document.createElement('input');
@@ -16,7 +17,7 @@ export function loadFromFile(editor, onProjectLoaded, scheduleAutoSave) {
                 scheduleAutoSave();
             } catch (err) {
                 console.error('[ProjectManager] Failed to load project:', err);
-                alert('Invalid project file.');
+                showNotification('Invalid project file.', 'error');
             }
         };
         reader.readAsText(file);

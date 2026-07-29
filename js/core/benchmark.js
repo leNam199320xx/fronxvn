@@ -176,9 +176,9 @@ export class Benchmark {
         const editor = window.editor;
         if (!editor) return;
 
-        const frag = CanvasAPI.createElement('div');
+        const frag = CanvasAPI.create('div');
         for (let i = 0; i < count; i++) {
-            const el = CanvasAPI.createElement('div');
+            const el = CanvasAPI.create('div');
             el.setAttribute('data-editor-element', '');
             el.dataset.type = 'div';
             el.dataset.name = `Benchmark ${i + 1}`;
@@ -259,7 +259,7 @@ export class Benchmark {
         return this.run('Startup', size, () => {
             // Simulate DOM work equivalent to panel render
             for (let i = 0; i < size; i++) {
-                const el = CanvasAPI.createElement('div');
+                const el = CanvasAPI.create('div');
                 el.style.display = 'none';
                 CanvasAPI.append(el);
                 this.trackDOMOp();

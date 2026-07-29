@@ -1,0 +1,94 @@
+.toolbar-left,
+.toolbar-right {
+    width: 48px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    gap: 4px;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.toolbar-right {
+    border-right: none;
+    border-left: 1px solid var(--border-color);
+}
+
+.toolbar-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-primary);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 16px;
+    transition: background var(--transition), border-color var(--transition);
+    position: relative;
+}
+
+.toolbar-icon:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+.toolbar-icon.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.panel-float {
+    width: 0;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    overflow-y: auto;
+    z-index: 20;
+    display: none;
+    flex-direction: column;
+}
+
+.panel-float.visible {
+    width: 300px;
+    display: flex;
+}
+
+.panel-float-left {
+    border-right: 1px solid var(--border-color);
+}
+
+.panel-float-right {
+    border-right: none;
+    border-left: 1px solid var(--border-color);
+}
+
+.panel-float::-webkit-scrollbar {
+    width: 6px;
+}
+
+.panel-float::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.panel-float::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+.panel-left {
+    width: var(--panel-width);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.panel-left.hidden {
+    display: none;
+}

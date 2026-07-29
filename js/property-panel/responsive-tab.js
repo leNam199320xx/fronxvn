@@ -110,7 +110,6 @@ export function createResponsiveTab({ editor, eventBus }) {
             errorEl.style.display = 'block';
         }
 
-        CanvasAPI.getDocument().querySelector('#theme-variables');
         if (selectedElement.getAttribute) {
             selectedElement.removeAttribute('style');
         }

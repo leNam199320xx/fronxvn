@@ -1,0 +1,11 @@
+:root {
+    --bg-primary: #f3f3f3;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #e5e5e5;
+    --bg-canvas: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #666666;
+    --accent: #0078d4;
+    --accent-hover: #1a8cff;
+    --border-color: #d0d0d0;
+}

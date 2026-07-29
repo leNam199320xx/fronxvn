@@ -25,8 +25,6 @@ export class RotateHandle {
     destroy() {}
 
     _bindEvents() {
-
-    _bindEvents() {
         eventBus.on('rotate:start', () => {
             this.isRotating = true;
             this.overlay.renderer._showRealtimeLabels();

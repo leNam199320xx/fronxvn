@@ -1,0 +1,27 @@
+.panel-right {
+    width: var(--panel-width);
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.panel-right.hidden {
+    display: none;
+}
+
+.editor-main.fullscreen .panel-left,
+.editor-main.fullscreen .panel-right {
+    display: none;
+}
+
+.panel-right::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.panel-right::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}

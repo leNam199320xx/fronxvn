@@ -4,7 +4,7 @@ import { cloneDeep } from '../core/clone.js';
 import CanvasAPI from '../canvas/canvas-api.js';
 
 export function createDOM(def, instanceId) {
-    const tempDiv = CanvasAPI.createElement('div');
+    const tempDiv = CanvasAPI.create('div');
     tempDiv.innerHTML = def.html;
 
     const roots = Array.from(tempDiv.children);
@@ -13,7 +13,7 @@ export function createDOM(def, instanceId) {
     if (roots.length === 1) {
         root = roots[0];
     } else {
-        root = CanvasAPI.createElement('div');
+        root = CanvasAPI.create('div');
         root.setAttribute('data-editor-element', '');
         root.dataset.type = 'container';
         root.dataset.name = def.name;

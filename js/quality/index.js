@@ -24,15 +24,17 @@ export class QualityEngine {
 
         this._scanTimer = null;
         this._scanDelay = QUALITY_SCAN_DELAY;
+
+        this._bindEvents();
     }
 
     init() {}
 
     refresh() {}
 
-    destroy() {}
-
-        this._bindEvents();
+    destroy() {
+        clearTimeout(this._scanTimer);
+        this._scanTimer = null;
     }
 
     /** Chạy scan ngay lập tức (không debounce). */

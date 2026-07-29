@@ -1,0 +1,26 @@
+/* ===== Rotate Handle ===== */
+.rotation-handle {
+    position: absolute;
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 16px;
+    background: white;
+    border: 2px solid var(--overlay-color);
+    border-radius: 50%;
+    cursor: grab;
+    pointer-events: all;
+    z-index: 10000;
+}
+
+.rotation-line {
+    position: absolute;
+    top: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1px;
+    height: 16px;
+    background: var(--overlay-color);
+    pointer-events: none;
+}

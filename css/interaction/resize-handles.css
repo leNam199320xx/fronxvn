@@ -1,0 +1,20 @@
+/* ===== Resize Handles ===== */
+.resize-handle {
+    position: absolute;
+    width: var(--handle-size);
+    height: var(--handle-size);
+    background: white;
+    border: 2px solid var(--overlay-color);
+    border-radius: 1px;
+    pointer-events: all;
+    z-index: 10000;
+}
+
+.resize-handle.nw { top: -4px; left: -4px; cursor: nw-resize; }
+.resize-handle.n { top: -4px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+.resize-handle.ne { top: -4px; right: -4px; cursor: ne-resize; }
+.resize-handle.e { top: 50%; right: -4px; transform: translateY(-50%); cursor: e-resize; }
+.resize-handle.se { bottom: -4px; right: -4px; cursor: se-resize; }
+.resize-handle.s { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+.resize-handle.sw { bottom: -4px; left: -4px; cursor: sw-resize; }
+.resize-handle.w { top: 50%; left: -4px; transform: translateY(-50%); cursor: w-resize; }

@@ -17,17 +17,21 @@ export class ProjectManager {
         this.autoSaveKey   = AUTOSAVE_STORAGE_KEY;
         this.autoSaveDelay = AUTOSAVE_DELAY_MS;
         this._autoSaveTimer = null;
+        this._autoLoadTimer = null;
 
         this._bindEvents();
 
-        setTimeout(() => this._autoLoad(), AUTOLOAD_DELAY_MS);
+        this._autoLoadTimer = setTimeout(() => this._autoLoad(), AUTOLOAD_DELAY_MS);
     }
 
     init() {}
 
     refresh() {}
 
-    destroy() {}
+    destroy() {
+        clearTimeout(this._autoLoadTimer);
+        this._autoLoadTimer = null;
+    }
 
     /** Bind events */
     _bindEvents() {

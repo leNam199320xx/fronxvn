@@ -1,0 +1,19 @@
+/* ===== Guides ===== */
+.guide-line {
+    position: absolute;
+    background: var(--guide-color);
+    pointer-events: none;
+    z-index: 9998;
+}
+
+.guide-line.horizontal {
+    height: 1px;
+    width: 100%;
+    left: 0;
+}
+
+.guide-line.vertical {
+    width: 1px;
+    height: 100%;
+    top: 0;
+}

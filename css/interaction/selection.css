@@ -1,0 +1,39 @@
+/* ===== Selection ===== */
+.overlay-selection {
+    position: absolute;
+    border: 2px solid var(--overlay-color);
+    pointer-events: none;
+}
+
+.overlay-rubber-band {
+    position: absolute;
+    border: 1px dashed var(--accent);
+    background: rgba(0, 120, 212, 0.08);
+    pointer-events: none;
+    z-index: 9998;
+}
+
+.overlay-multi-badge {
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 10px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* Multi-select notice in property panel */
+.multi-select-notice {
+    padding: 10px 12px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    text-align: center;
+    letter-spacing: 0.3px;
+}

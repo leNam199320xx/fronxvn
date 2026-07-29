@@ -1,0 +1,14 @@
+/* ===== Grid ===== */
+.canvas.show-grid {
+    background-image:
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+        linear-gradient(var(--grid-color-major) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color-major) 1px, transparent 1px);
+    background-size:
+        10px 10px,
+        10px 10px,
+        100px 100px,
+        100px 100px;
+    background-origin: border-box;
+}

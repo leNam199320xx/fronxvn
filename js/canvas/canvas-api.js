@@ -335,7 +335,7 @@ class CanvasAPI {
         const doc = CanvasHost.getDocument();
         const win = CanvasHost.getWindow();
 
-        const [{ default: CanvasEventBridge }, { default: CanvasMutationObserver }] = await Promise.all([
+        const [{ default: CanvasEventBridge }, { CanvasMutationObserver }] = await Promise.all([
             import('./canvas-event-bridge.js'),
             import('./canvas-mutation-observer.js')
         ]);

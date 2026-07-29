@@ -1,0 +1,19 @@
+.editor-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+}
+
+.editor-main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.viewport-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    min-width: 50px;
+}

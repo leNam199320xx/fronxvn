@@ -1,5 +1,6 @@
 import eventBus from '../event-bus.js';
 import { buildLegacyPage } from './migration.js';
+import { showNotification } from '../ui/toast.js';
 
 export function deserializeProject(editor, project) {
     if (!project) return;
@@ -23,7 +24,7 @@ export function deserializeProject(editor, project) {
         const legacyPage = buildLegacyPage(project.elements, project.meta);
         editor.pageManager.loadPages([legacyPage]);
     } else {
-        console.warn('[ProjectManager] _loadProject: unrecognized format, loading empty project.');
+        showNotification('Unrecognized project format. Loading empty project.', 'error');
         editor.pageManager.loadPages([]);
     }
 }

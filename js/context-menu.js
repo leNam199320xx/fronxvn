@@ -22,7 +22,14 @@ export class ContextMenu {
 
     refresh() {}
 
-    destroy() {}
+    destroy() {
+        if (this._onMousedown) {
+            document.removeEventListener('mousedown', this._onMousedown);
+        }
+        if (this._onScroll) {
+            document.removeEventListener('scroll', this._onScroll, true);
+        }
+    }
 
     /** Tạo menu items */
     _buildMenu() {
@@ -108,7 +115,7 @@ export class ContextMenu {
         this._bindZOrderEvents();
         this._bindLockEvents();
         this._bindVisibilityToggleEvents();
-        this._bindMenuHideEvents();
+        this._bindHideEvents();
         this._bindWrapEvent();
     }
 
@@ -121,13 +128,14 @@ export class ContextMenu {
     }
 
     _bindHideEvents() {
-        document.addEventListener('mousedown', (e) => {
+        this._onMousedown = (e) => {
             if (!this.menu.contains(e.target)) {
                 this._hide();
             }
-        });
-
-        document.addEventListener('scroll', () => this._hide(), true);
+        };
+        this._onScroll = () => this._hide();
+        document.addEventListener('mousedown', this._onMousedown);
+        document.addEventListener('scroll', this._onScroll, true);
 
         eventBus.on('context-menu:hide', () => this._hide());
     }

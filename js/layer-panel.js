@@ -19,6 +19,8 @@ export class LayerPanel {
         this.expandedMap = new Map();
         this._layerItems = null;
 
+        if (!this.container) return;
+
         this.layerTree = new LayerTree(this);
         this.layerEvents = new LayerEvents(this);
 
@@ -38,6 +40,7 @@ export class LayerPanel {
     }
 
     _render() {
+        if (!this.container) return;
         debug.action('layer-panel', 'render', { canvasChildren: this.editor.canvas.children.length });
         this.layerTree._render();
     }

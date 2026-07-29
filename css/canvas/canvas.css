@@ -1,0 +1,48 @@
+@import "./viewport.css";
+@import "./grid.css";
+@import "./rulers.css";
+
+/* ===== Canvas ===== */
+.canvas {
+    position: relative;
+    width: 1440px;
+    min-height: 900px;
+    background: white;
+    flex-shrink: 0;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    transform-origin: top center;
+}
+
+.canvas.bp-tablet {
+    box-shadow: 0 0 0 2px #f0a000, 0 0 0 4px rgba(240,160,0,0.2);
+}
+
+.canvas.bp-mobile {
+    box-shadow: 0 0 0 2px #e05050, 0 0 0 4px rgba(224,80,80,0.2);
+}
+
+/* ===== Canvas Container ===== */
+.canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
+
+/* ===== Canvas Content ===== */
+.canvas-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100%;
+    min-height: 100%;
+    padding: 60px;
+    box-sizing: border-box;
+}
+
+.canvas [data-editor-element] {
+    cursor: default;
+    user-select: none;
+}

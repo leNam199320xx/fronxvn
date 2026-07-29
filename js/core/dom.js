@@ -2,7 +2,7 @@ import { generateElementId } from './ids.js';
 import CanvasAPI from '../canvas/canvas-api.js';
 
 export function deserializeElement(data) {
-    const el = CanvasAPI.createElement(data.tag || 'div');
+    const el = CanvasAPI.create(data.tag || 'div');
     el.setAttribute('data-editor-element', '');
     el.id = data.id || generateElementId();
 

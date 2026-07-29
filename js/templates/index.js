@@ -18,6 +18,8 @@ export class TemplateManager {
         this.editor    = editor;
         this.container = document.querySelector('#panel-right');
 
+        if (!this.container) return;
+
         this._builtins = BUILTIN_TEMPLATES;
         this._userTemplates = loadUserTemplates();
         this._activeCategory = 'all';

@@ -33,6 +33,7 @@ import { ComponentManager } from './components/index.js';
 import { ComponentPanel } from './component-panel.js';
 import { ThemeManager } from './theme-manager.js';
 import { showNotification } from './ui/toast.js';
+import { ZOOM_DEFAULT, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP, GRID_ENABLED_DEFAULT, GRID_SIZE, CANVAS_INNER_PADDING } from './config.js';
 
 class Editor {
     constructor() {
@@ -199,8 +200,7 @@ class Editor {
             this.canvas.innerHTML = '';
             this.projectMeta.title = projectName;
             document.title = `${projectName} — HTML Visual Editor`;
-            eventBus.clear();
-            eventBus.emit('selection:deselect-all');
+            this.selection.deselectAll();
             eventBus.emit('overlay:clear');
             eventBus.emit('layer:refresh');
             eventBus.emit('project:meta-updated', { title: projectName });

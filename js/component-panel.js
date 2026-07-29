@@ -12,6 +12,8 @@ export class ComponentPanel {
         this.container  = document.querySelector('#panel-right');
         this._components = [];
 
+        if (!this.container) return;
+
         this._bindEvents();
     }
 
@@ -179,7 +181,6 @@ export class ComponentPanel {
         const commit = () => {
             const newName = input.value.trim() || def.name;
             nameEl.textContent = newName;
-            nameEl.replaceWith(nameEl); // ensure DOM is clean
             this.editor.componentManager.renameComponent(def.id, newName);
             input.replaceWith(nameEl);
         };

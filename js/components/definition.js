@@ -9,7 +9,7 @@ export function create(components, elements, name) {
         return null;
     }
 
-    const tempDiv = CanvasAPI.createElement('div');
+    const tempDiv = CanvasAPI.create('div');
     elements.forEach(el => tempDiv.appendChild(el.cloneNode(true)));
 
     const bpStyles = collectBpStyles(elements);
@@ -43,7 +43,7 @@ export function updateFromInstance(components, componentId, selectedElement) {
     clone.removeAttribute('data-component-id');
     clone.removeAttribute('data-instance-id');
 
-    const tempDiv = CanvasAPI.createElement('div');
+    const tempDiv = CanvasAPI.create('div');
     tempDiv.appendChild(clone);
     def.html = tempDiv.innerHTML;
 

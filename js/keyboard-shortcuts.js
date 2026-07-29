@@ -13,10 +13,13 @@ export class KeyboardShortcuts {
 
     refresh() {}
 
-    destroy() {}
+    destroy() {
+        document.removeEventListener('keydown', this._onKeydown);
+    }
 
     _bindEvents() {
-        document.addEventListener('keydown', (e) => this._handleKeydown(e));
+        this._onKeydown = (e) => this._handleKeydown(e);
+        document.addEventListener('keydown', this._onKeydown);
     }
 
     _handleKeydown(e) {

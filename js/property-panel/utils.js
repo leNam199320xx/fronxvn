@@ -1,6 +1,8 @@
 import { DEFAULT_COLOR_FALLBACK } from '../config.js';
 import { toHex } from '../core/color.js';
 
+export { toHex };
+
 export function createFieldRow(field, onChange) {
     const row = document.createElement('div');
     row.className = 'prop-row';

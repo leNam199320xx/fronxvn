@@ -5,6 +5,7 @@ import { buildHead } from './export-seo.js';
 import { elementToHTML } from './export-html.js';
 import { resolveFilenames } from './filename.js';
 import { downloadBlob } from '../core/download.js';
+import { showNotification } from '../ui/toast.js';
 
 export async function downloadZip(editor) {
     const css = exportCSS(editor);
@@ -42,6 +43,7 @@ export async function downloadZip(editor) {
         URL.revokeObjectURL(url);
     } catch (e) {
         console.error('[ExportManager] ZIP failed:', e);
+        showNotification('ZIP export failed. Downloading individual files instead.', 'error');
         if (pages && pages.length > 0) {
             const filenames = resolveFilenames(pages);
             pages.forEach((page, i) => {

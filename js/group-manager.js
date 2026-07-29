@@ -66,7 +66,7 @@ export class GroupManager {
         }));
 
         // Tạo GroupElement
-        const groupEl = CanvasAPI.createElement('div', {
+        const groupEl = CanvasAPI.create('div', {
             'data-editor-element': '',
             'data-type': 'group',
             'data-container': 'true',

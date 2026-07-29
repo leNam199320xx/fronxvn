@@ -8,14 +8,14 @@ function applyStyles(el, styles) {
 }
 
 function addTextChild(el, text, styles = {}) {
-    const span = CanvasAPI.createElement('span');
+    const span = CanvasAPI.create('span');
     span.textContent = text;
     applyStyles(span, styles);
     el.appendChild(span);
 }
 
 function addDivChild(el, text, styles = {}) {
-    const div = CanvasAPI.createElement('div');
+    const div = CanvasAPI.create('div');
     div.textContent = text;
     applyStyles(div, styles);
     el.appendChild(div);
@@ -44,7 +44,7 @@ export function createDiv(el) {
 export function createCard(el) {
     applyStyles(el, { width: '300px', height: 'auto', backgroundColor: '#ffffff', border: '1px solid #e0e0e0', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden', display: 'flex', flexDirection: 'column' });
 
-    const cardHeader = CanvasAPI.createElement('div');
+    const cardHeader = CanvasAPI.create('div');
     cardHeader.style.cssText = 'padding: 16px; border-bottom: 1px solid #e0e0e0; font-weight: 600; font-size: 16px;';
     cardHeader.textContent = 'Card Header';
     cardHeader.setAttribute('data-editor-element', '');
@@ -53,7 +53,7 @@ export function createCard(el) {
     cardHeader.dataset.container = 'true';
     cardHeader.style.position = 'relative';
 
-    const cardBody = CanvasAPI.createElement('div');
+    const cardBody = CanvasAPI.create('div');
     cardBody.style.cssText = 'padding: 16px; flex: 1; font-size: 14px; color: #555;';
     cardBody.textContent = 'Card body content goes here. You can add any content inside.';
     cardBody.setAttribute('data-editor-element', '');
@@ -62,7 +62,7 @@ export function createCard(el) {
     cardBody.dataset.container = 'true';
     cardBody.style.position = 'relative';
 
-    const cardFooter = CanvasAPI.createElement('div');
+    const cardFooter = CanvasAPI.create('div');
     cardFooter.style.cssText = 'padding: 12px 16px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999;';
     cardFooter.textContent = 'Card Footer';
     cardFooter.setAttribute('data-editor-element', '');
@@ -126,10 +126,10 @@ export function createTextarea(el) {
 
 export function createCheckbox(el) {
     applyStyles(el, { width: '200px', height: 'auto', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' });
-    const cb = CanvasAPI.createElement('input');
+    const cb = CanvasAPI.create('input');
     cb.type = 'checkbox';
     applyStyles(cb, { width: '16px', height: '16px', margin: '0' });
-    const cbLabel = CanvasAPI.createElement('span');
+    const cbLabel = CanvasAPI.create('span');
     cbLabel.textContent = 'Checkbox label';
     cbLabel.style.color = '#333';
     el.appendChild(cb);
@@ -138,10 +138,10 @@ export function createCheckbox(el) {
 
 export function createRadio(el) {
     applyStyles(el, { width: '200px', height: 'auto', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' });
-    const rd = CanvasAPI.createElement('input');
+    const rd = CanvasAPI.create('input');
     rd.type = 'radio';
     applyStyles(rd, { width: '16px', height: '16px', margin: '0' });
-    const rdLabel = CanvasAPI.createElement('span');
+    const rdLabel = CanvasAPI.create('span');
     rdLabel.textContent = 'Radio label';
     rdLabel.style.color = '#333';
     el.appendChild(rd);
@@ -150,10 +150,10 @@ export function createRadio(el) {
 
 export function createTable(el) {
     applyStyles(el, { width: '400px', height: 'auto', borderCollapse: 'collapse', fontSize: '14px' });
-    const thead = CanvasAPI.createElement('thead');
-    const headerRow = CanvasAPI.createElement('tr');
+    const thead = CanvasAPI.create('thead');
+    const headerRow = CanvasAPI.create('tr');
     for (let c = 1; c <= 3; c++) {
-        const th = CanvasAPI.createElement('th');
+        const th = CanvasAPI.create('th');
         th.textContent = `Header ${c}`;
         th.style.cssText = 'padding: 10px 12px; border: 1px solid #ddd; background: #f5f5f5; font-weight: 600; text-align: left;';
         headerRow.appendChild(th);
@@ -161,11 +161,11 @@ export function createTable(el) {
     thead.appendChild(headerRow);
     el.appendChild(thead);
 
-    const tbody = CanvasAPI.createElement('tbody');
+    const tbody = CanvasAPI.create('tbody');
     for (let r = 1; r <= 3; r++) {
-        const row = CanvasAPI.createElement('tr');
+        const row = CanvasAPI.create('tr');
         for (let c = 1; c <= 3; c++) {
-            const td = CanvasAPI.createElement('td');
+            const td = CanvasAPI.create('td');
             td.textContent = `Row ${r}, Col ${c}`;
             td.style.cssText = 'padding: 8px 12px; border: 1px solid #ddd;';
             row.appendChild(td);
@@ -179,7 +179,7 @@ export function createList(el) {
     applyStyles(el, { width: '250px', height: 'auto', padding: '0', margin: '0', listStyle: 'none', fontSize: '14px' });
     const items = ['List Item 1', 'List Item 2', 'List Item 3'];
     items.forEach((text, i) => {
-        const li = CanvasAPI.createElement('li');
+        const li = CanvasAPI.create('li');
         li.textContent = text;
         li.style.cssText = `padding: 10px 16px; border-bottom: 1px solid #eee; color: #333;${i === 0 ? ' background: #f8f9fa;' : ''}`;
         el.appendChild(li);

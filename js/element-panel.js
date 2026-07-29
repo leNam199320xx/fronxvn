@@ -14,6 +14,8 @@ export class ElementPanel {
         this.selectedElement = null;
         this._items = null;
 
+        if (!this.container) return;
+
         this._bindEvents();
         this._render();
     }
@@ -46,6 +48,7 @@ export class ElementPanel {
 
     /** Render element library */
     _render() {
+        if (!this.container) return;
         this.container.innerHTML = '';
 
         const section = document.createElement('div');
@@ -116,7 +119,7 @@ export class ElementPanel {
 
     /** Tạo DOM element */
     _createElement(item) {
-        const el = CanvasAPI.createElement(item.tag);
+        const el = CanvasAPI.create(item.tag);
         el.setAttribute('data-editor-element', '');
         el.dataset.type = item.type;
 

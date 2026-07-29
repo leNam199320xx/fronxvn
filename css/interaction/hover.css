@@ -1,0 +1,6 @@
+/* ===== Hover ===== */
+.overlay-hover {
+    position: absolute;
+    border: 1px dashed var(--hover-color);
+    pointer-events: none;
+}

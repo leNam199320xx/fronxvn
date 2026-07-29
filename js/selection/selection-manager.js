@@ -4,6 +4,7 @@ import { SELECTION_EDIT_OUTLINE } from '../config.js';
 import { SelectionState } from './selection-state.js';
 import { SelectionHitTest } from './selection-hit-test.js';
 import { SelectionEvents } from './selection-events.js';
+import { showNotification } from '../ui/toast.js';
 
 export class SelectionManager {
     constructor(editor) {
@@ -135,6 +136,9 @@ export class SelectionManager {
                     after
                 });
                 eventBus.emit('element:updated', el);
+            };
+            reader.onerror = () => {
+                showNotification('Failed to read image file.', 'error');
             };
             reader.readAsDataURL(file);
         });

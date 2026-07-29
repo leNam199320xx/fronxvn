@@ -41,17 +41,6 @@ export class Drag {
     refresh() {}
 
     destroy() {}
-        this._rafId = null;
-        this._snapVersion = 0;
-        this._snapOthers = [];
-        this._rbLayerRect = null;
-
-        // Rubber-band state
-        this.rbStartX = 0;
-        this.rbStartY = 0;
-
-        this._bindEvents();
-    }
 
     /** Bind events */
     _bindEvents() {
