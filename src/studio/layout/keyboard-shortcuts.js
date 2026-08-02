@@ -24,7 +24,7 @@ export class KeyboardShortcuts {
 
     _handleKeydown(e) {
         const target = e.target;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || e._isIframeContentEditable) {
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
             return;
         }
 

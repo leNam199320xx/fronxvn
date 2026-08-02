@@ -26,7 +26,6 @@ export class SelectionState {
     toggleSelection(el) {
         if (!el) return;
         const idx = this.selectedElements.indexOf(el);
-        debug.action('selection', 'toggleSelection', { id: el.id, type: el.dataset.type, adding: idx === -1 });
         if (idx === -1) {
             this.selectedElements.push(el);
         } else {
@@ -50,7 +49,6 @@ export class SelectionState {
     addToSelection(el) {
         if (!el) return;
         if (!this.selectedElements.includes(el)) {
-            debug.action('selection', 'addToSelection', { id: el.id, type: el.dataset.type });
             this.selectedElements.push(el);
             DirtyState.mark(DIRTY.SELECTION);
             eventBus.emit('selection:changed', this.selectedElements);
@@ -60,7 +58,6 @@ export class SelectionState {
 
     removeFromSelection(el) {
         if (!el) return;
-        debug.action('selection', 'removeFromSelection', { id: el.id, type: el.dataset.type });
         this.selectedElements = this.selectedElements.filter(e => e !== el);
         DirtyState.mark(DIRTY.SELECTION);
         if (this.selectedElements.length === 0) {
@@ -72,7 +69,6 @@ export class SelectionState {
     }
 
     setSelection(elements) {
-        debug.action('selection', 'setSelection', { count: elements.length });
         this.selectedElements = [...elements];
         DirtyState.mark(DIRTY.SELECTION);
         if (this.selectedElements.length === 0) {
@@ -86,7 +82,6 @@ export class SelectionState {
 
     deselectAll() {
         if (this.selectedElements.length === 0) return;
-        debug.action('selection', 'deselectAll', { count: this.selectedElements.length });
         this.selectedElements = [];
         DirtyState.mark(DIRTY.SELECTION);
         eventBus.emit('selection:changed', this.selectedElements);
@@ -109,4 +104,3 @@ export class SelectionState {
         return this.selectedElements.includes(el);
     }
 }
-

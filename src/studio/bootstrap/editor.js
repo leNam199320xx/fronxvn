@@ -475,8 +475,7 @@ class Editor {
         this._onKeyDown = (e) => {
             if (e.code === 'Space') {
                 const t = e.target;
-                const iframeCE = e._isIframeContentEditable;
-                if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable || iframeCE) return;
+                if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
                 e.preventDefault();
                 if (!this.isPanning) {
                     this.isPanning = true;
@@ -648,4 +647,6 @@ class Editor {
         return Math.round(value / this.gridSize) * this.gridSize;
     }
 }
+
+export { Editor };
 

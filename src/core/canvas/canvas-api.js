@@ -1,8 +1,6 @@
 ﻿/**
  * Canvas API - Single public DOM abstraction for the editable canvas.
- * - All canvas DOM operations must go through this API
- * - CanvasHost remains private
- * - Modules must not access iframe.contentDocument directly
+ * Canvas lives in the main document — no iframe coordination needed.
  */
 import CanvasHost from './canvas-host.js';
 import FrameCache from '../viewport/frame-cache.js';
@@ -10,27 +8,28 @@ import CanvasDiagnostics from './canvas-diagnostics.js';
 
 class CanvasAPI {
     getDocument() {
-        return CanvasHost.getDocument();
+        return document;
     }
 
     getWindow() {
-        return CanvasHost.getWindow();
+        return window;
     }
 
     getBody() {
-        return CanvasHost.getBody();
+        return document.body;
     }
 
     getRoot() {
         return CanvasHost.getRoot();
     }
 
+    /** No iframe — returns null. Kept for callers that check for iframe. */
     getIframe() {
-        return CanvasHost.getIframe();
+        return null;
     }
 
     getSelection() {
-        return this.getWindow().getSelection();
+        return window.getSelection();
     }
 
     query(selector) {
@@ -44,7 +43,7 @@ class CanvasAPI {
     }
 
     create(tag, attrs = {}) {
-        const el = this.getDocument().createElement(tag);
+        const el = document.createElement(tag);
         for (const [key, value] of Object.entries(attrs)) {
             if (key === 'textContent') {
                 el.textContent = value;
@@ -58,9 +57,7 @@ class CanvasAPI {
     }
 
     remove(el) {
-        if (el && el.parentNode) {
-            el.parentNode.removeChild(el);
-        }
+        if (el && el.parentNode) el.parentNode.removeChild(el);
     }
 
     append(el, target) {
@@ -95,8 +92,7 @@ class CanvasAPI {
     }
 
     clone(el, deep = true) {
-        if (!el) return null;
-        return el.cloneNode(deep);
+        return el ? el.cloneNode(deep) : null;
     }
 
     closest(el, selector) {
@@ -112,9 +108,7 @@ class CanvasAPI {
     setStyle(el, prop, value) {
         if (!el || !prop) return;
         el.style.setProperty(prop, value);
-        if (el.id) {
-            FrameCache.invalidate(`elementRect:${el.id}`);
-        }
+        if (el.id) FrameCache.invalidate(`elementRect:${el.id}`);
     }
 
     removeStyle(el, prop) {
@@ -168,8 +162,7 @@ class CanvasAPI {
     }
 
     getClass(el) {
-        if (!el) return '';
-        return el.className;
+        return el ? el.className : '';
     }
 
     setClassList(el, className, action) {
@@ -177,9 +170,9 @@ class CanvasAPI {
         el.classList[action](className);
     }
 
-    contains(el, child) {
-        if (!el || !child) return false;
-        return el.contains(child);
+    contains(parent, child) {
+        if (!parent || !child) return false;
+        return parent.contains(child);
     }
 
     setText(el, text) {
@@ -188,8 +181,7 @@ class CanvasAPI {
     }
 
     getText(el) {
-        if (!el) return '';
-        return el.textContent;
+        return el ? el.textContent : '';
     }
 
     setHTML(el, html) {
@@ -198,38 +190,27 @@ class CanvasAPI {
     }
 
     getHTML(el) {
-        if (!el) return '';
-        return el.innerHTML;
+        return el ? el.innerHTML : '';
     }
 
+    /**
+     * Returns the iframe rect as {left:0, top:0, width:0, height:0}.
+     * No iframe exists — kept for API compatibility with any remaining callers.
+     */
     getIframeRect() {
-        return FrameCache.get('iframeRect', () => {
-            const iframe = CanvasHost.getIframe();
-            if (!iframe) return { left: 0, top: 0, width: 0, height: 0 };
-            CanvasDiagnostics.trackBoundingClientRect();
-            const r = iframe.getBoundingClientRect();
-            return { left: r.left, top: r.top, width: r.width, height: r.height };
-        });
+        return { left: 0, top: 0, width: 0, height: 0 };
     }
 
+    /**
+     * Returns the bounding rect of the canvas root in viewport coordinates.
+     */
     getRootRect() {
         return FrameCache.get('rootRect', () => {
-            const iframe = CanvasHost.getIframe();
+            const root = this.getRoot();
+            if (!root) return { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 };
             CanvasDiagnostics.trackBoundingClientRect();
-            const r = this.getRoot().getBoundingClientRect();
-            if (!iframe) {
-                return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
-            }
-            CanvasDiagnostics.trackBoundingClientRect();
-            const iRect = iframe.getBoundingClientRect();
-            return {
-                left: r.left + iRect.left,
-                top: r.top + iRect.top,
-                right: r.right + iRect.left,
-                bottom: r.bottom + iRect.top,
-                width: r.width,
-                height: r.height
-            };
+            const r = root.getBoundingClientRect();
+            return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
         });
     }
 
@@ -249,9 +230,9 @@ class CanvasAPI {
             const zoom = this.getZoom();
 
             const left   = (containerRect.left - canvasRect.left) / zoom;
-            const top    = (containerRect.top - canvasRect.top) / zoom;
-            const right  = left + containerRect.width / zoom;
-            const bottom = top + containerRect.height / zoom;
+            const top    = (containerRect.top  - canvasRect.top)  / zoom;
+            const right  = left + containerRect.width  / zoom;
+            const bottom = top  + containerRect.height / zoom;
 
             return { left, top, right, bottom };
         });
@@ -280,67 +261,40 @@ class CanvasAPI {
         return FrameCache.get('scrollY', () => window.scrollY || window.pageYOffset || 0);
     }
 
+    /**
+     * Returns the bounding rect of any element in viewport coordinates.
+     * Since everything is in the main document, getBoundingClientRect() is already correct.
+     */
     getElementRect(el) {
         if (!el) return { left: 0, top: 0, width: 0, height: 0 };
 
         const cacheKey = el.id ? `elementRect:${el.id}` : null;
         if (cacheKey) {
             return FrameCache.get(cacheKey, () => {
-                const iframe = CanvasHost.getIframe();
                 CanvasDiagnostics.trackBoundingClientRect();
                 const r = el.getBoundingClientRect();
-                if (!iframe) {
-                    return { left: r.left, top: r.top, width: r.width, height: r.height };
-                }
-                CanvasDiagnostics.trackBoundingClientRect();
-                const iRect = iframe.getBoundingClientRect();
-                return {
-                    left: r.left + iRect.left,
-                    top: r.top + iRect.top,
-                    width: r.width,
-                    height: r.height
-                };
+                return { left: r.left, top: r.top, width: r.width, height: r.height };
             });
         }
 
-        const iframe = CanvasHost.getIframe();
         CanvasDiagnostics.trackBoundingClientRect();
         const r = el.getBoundingClientRect();
-        if (!iframe) {
-            return { left: r.left, top: r.top, width: r.width, height: r.height };
-        }
-        CanvasDiagnostics.trackBoundingClientRect();
-        const iRect = iframe.getBoundingClientRect();
-        return {
-            left: r.left + iRect.left,
-            top: r.top + iRect.top,
-            width: r.width,
-            height: r.height
-        };
+        return { left: r.left, top: r.top, width: r.width, height: r.height };
     }
 
     getComputedStyle(el) {
-        if (!el) return {};
-        return this.getWindow().getComputedStyle(el);
-    }
-
-    contains(parent, child) {
-        if (!parent || !child) return false;
-        return parent.contains(child);
+        return el ? window.getComputedStyle(el) : {};
     }
 
     async init() {
         await CanvasHost.init();
-        const iframe = CanvasHost.getIframe();
-        const doc = CanvasHost.getDocument();
-        const win = CanvasHost.getWindow();
 
-        const [{ default: CanvasEventBridge }, { CanvasMutationObserver }] = await Promise.all([
+        const [{ CanvasEventBridge }, { CanvasMutationObserver }] = await Promise.all([
             import('./canvas-event-bridge.js'),
             import('./canvas-mutation-observer.js')
         ]);
 
-        this._bridge = new CanvasEventBridge(iframe, doc, win, this.getIframeRect.bind(this));
+        this._bridge = new CanvasEventBridge();
         this._bridge.init();
 
         this._mutationObserver = new CanvasMutationObserver(
@@ -351,20 +305,17 @@ class CanvasAPI {
         this._mutationObserver.init();
     }
 
-    /** Disconnect canvas observers and event bridge to release resources. */
     dispose() {
-        if (this._mutationObserver) {
-            this._mutationObserver.disconnect();
-            this._mutationObserver = null;
-        }
         if (this._bridge) {
             this._bridge.destroy();
             this._bridge = null;
         }
-        CanvasHost._disposeResizeObserver();
+        if (this._mutationObserver) {
+            this._mutationObserver.disconnect();
+            this._mutationObserver = null;
+        }
         FrameCache.clear();
     }
 }
 
 export default new CanvasAPI();
-

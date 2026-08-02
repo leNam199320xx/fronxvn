@@ -1,202 +1,132 @@
 /**
- * CanvasEventBridge - Forwards pointer/wheel/focus events from the iframe.
- * Emits typed data via EventBus to avoid synthetic DOM event allocations.
- * Keyboard events continue dispatching to the iframe for contentEditable support.
+ * CanvasEventBridge - Forwards pointer/wheel events from the main document canvas.
+ * No iframe — events are bound directly on the canvas root div and main document.
+ * All events are normalized to mousedown/mousemove/mouseup names for consumer consistency.
  */
 import eventBus from '../events/event-bus.js';
 import CanvasDiagnostics from './canvas-diagnostics.js';
 
 const SUPPORTS_POINTER = typeof window !== 'undefined' && 'PointerEvent' in window;
 
-function normalizePointer(e, getIframeRect) {
-    const { left, top } = getIframeRect();
-    return {
-        clientX: e.clientX + left,
-        clientY: e.clientY + top,
-        screenX: e.screenX,
-        screenY: e.screenY,
-        pageX: (e.pageX || 0) + left,
-        pageY: (e.pageY || 0) + top,
-        ctrlKey: e.ctrlKey,
-        metaKey: e.metaKey,
-        shiftKey: e.shiftKey,
-        altKey: e.altKey,
-        button: e.button,
-        buttons: e.buttons,
-        pointerId: e.pointerId,
-        pressure: e.pressure,
-        target: e.target
-    };
-}
-
 export class CanvasEventBridge {
-    constructor(iframe, doc, win, getIframeRect) {
-        this._iframe = iframe;
-        this._doc = doc;
-        this._win = win;
-        this._getIframeRect = getIframeRect;
-        this._handlers = new Map();
+    constructor() {
+        this._handlers = [];
     }
 
     init() {
-        if (!this._doc || !this._win) return;
         this._bindPointerEvents();
+        this._bindDblClickEvent();
         this._bindWheelEvent();
-        this._bindKeyboardEvents();
         this._bindContextMenu();
-        this._bindFocusEvents();
     }
 
-    /** Remove all bound event listeners. */
     destroy() {
-        if (!this._doc || !this._win) return;
-        for (const [, handlerData] of this._handlers) {
-            const [target, type, handler] = handlerData;
-            target.removeEventListener(type, handler);
+        for (const { target, type, handler, options } of this._handlers) {
+            target.removeEventListener(type, handler, options);
         }
-        this._handlers.clear();
+        this._handlers = [];
     }
 
-    _addHandler(target, type, handler, options) {
-        this._handlers.set(handler, [target, type, handler]);
+    _add(target, type, handler, options) {
         target.addEventListener(type, handler, options);
+        this._handlers.push({ target, type, handler, options });
     }
+
+    // ─── Pointer ──────────────────────────────────────────────────────────────
 
     _bindPointerEvents() {
-        const map = SUPPORTS_POINTER
-            ? { pointerdown: 'pointerdown', pointermove: 'pointermove', pointerup: 'pointerup', pointercancel: 'pointercancel' }
-            : { mousedown: 'mousedown', mousemove: 'mousemove', mouseup: 'mouseup', dragstart: 'dragstart', dragend: 'dragend' };
-
-        const emitPointer = (type) => (e) => this._emitPointer(type, e);
-        const emitParentPointer = (type) => (e) => this._emitParentPointer(type, e);
-
-        Object.entries(map).forEach(([source, type]) => {
-            this._addHandler(this._doc, source, emitPointer(type));
-        });
-
         if (SUPPORTS_POINTER) {
-            this._addHandler(this._win.document, 'pointermove', emitParentPointer('pointermove'));
-            this._addHandler(this._win.document, 'pointerup', emitParentPointer('pointerup'));
-            this._addHandler(this._win.document, 'pointercancel', emitParentPointer('pointercancel'));
+            this._add(document, 'pointerdown',   (e) => this._emit('mousedown', e));
+            this._add(document, 'pointermove',   (e) => this._emit('mousemove', e));
+            this._add(document, 'pointerup',     (e) => this._emit('mouseup', e));
+            this._add(document, 'pointercancel', (e) => this._emit('mouseup', e));
         } else {
-            this._addHandler(this._win.document, 'mousemove', emitParentPointer('mousemove'));
-            this._addHandler(this._win.document, 'mouseup', emitParentPointer('mouseup'));
+            this._add(document, 'mousedown', (e) => this._emit('mousedown', e));
+            this._add(document, 'mousemove', (e) => this._emit('mousemove', e));
+            this._add(document, 'mouseup',   (e) => this._emit('mouseup', e));
         }
     }
 
-    _emitPointer(type, e) {
-        CanvasDiagnostics.trackEventBridgeEvent();
-        const data = normalizePointer(e, this._getIframeRect);
-        data.type = type;
-        eventBus.emit('pointer:' + type, data);
+    /** Returns true if the event originated from within the editor canvas area. */
+    _isCanvasEvent(e) {
+        const wrapper = document.getElementById('canvas-wrapper');
+        return wrapper ? wrapper.contains(e.target) : true;
     }
 
-    _emitParentPointer(type, e) {
-        if (this._iframe.contains(e.target) || e.target === this._iframe) return;
+    _emit(normalizedType, e) {
+        // mousemove and mouseup fire globally (needed for drag outside canvas).
+        // mousedown only fires if it originated inside canvas-wrapper.
+        if (normalizedType === 'mousedown' && !this._isCanvasEvent(e)) return;
         CanvasDiagnostics.trackEventBridgeEvent();
-        const data = {
-            clientX: e.clientX,
-            clientY: e.clientY,
-            screenX: e.screenX,
-            screenY: e.screenY,
-            pageX: e.pageX || 0,
-            pageY: e.pageY || 0,
-            ctrlKey: e.ctrlKey,
-            metaKey: e.metaKey,
+        eventBus.emit('pointer:' + normalizedType, {
+            clientX:  e.clientX,
+            clientY:  e.clientY,
+            screenX:  e.screenX,
+            screenY:  e.screenY,
+            pageX:    e.pageX  || 0,
+            pageY:    e.pageY  || 0,
+            ctrlKey:  e.ctrlKey,
+            metaKey:  e.metaKey,
             shiftKey: e.shiftKey,
-            altKey: e.altKey,
-            button: e.button,
-            buttons: e.buttons,
-            target: e.target
-        };
-        data.type = type;
-        eventBus.emit('pointer:' + type, data);
+            altKey:   e.altKey,
+            button:   e.button,
+            buttons:  e.buttons,
+            target:   e.target,
+            type:     normalizedType
+        });
     }
 
-    _bindContextMenu() {
-        const handler = (e) => {
-            e.preventDefault();
+    // ─── Double click ─────────────────────────────────────────────────────────
+
+    _bindDblClickEvent() {
+        this._add(document, 'dblclick', (e) => {
             CanvasDiagnostics.trackEventBridgeEvent();
-            const data = normalizePointer(e, this._getIframeRect);
-            data.type = 'contextmenu';
-            eventBus.emit('pointer:contextmenu', data);
-        };
-        this._addHandler(this._doc, 'contextmenu', handler);
-        this._emitContextMenu = handler;
+            eventBus.emit('pointer:dblclick', {
+                clientX: e.clientX, clientY: e.clientY,
+                target: e.target, shiftKey: e.shiftKey,
+                type: 'dblclick'
+            });
+        });
     }
+
+    // ─── Wheel ────────────────────────────────────────────────────────────────
 
     _bindWheelEvent() {
         const handler = (e) => {
-            if (e.ctrlKey) {
-                e.preventDefault();
-            }
+            if (e.ctrlKey) e.preventDefault();
             CanvasDiagnostics.trackEventBridgeEvent();
-            const { left, top } = this._getIframeRect();
             eventBus.emit('wheel', {
-                clientX: e.clientX + left,
-                clientY: e.clientY + top,
-                deltaX: e.deltaX,
-                deltaY: e.deltaY,
-                deltaZ: e.deltaZ,
+                clientX: e.clientX,
+                clientY: e.clientY,
+                deltaX:  e.deltaX,
+                deltaY:  e.deltaY,
+                deltaZ:  e.deltaZ,
                 deltaMode: e.deltaMode,
-                ctrlKey: e.ctrlKey,
-                metaKey: e.metaKey,
+                ctrlKey:  e.ctrlKey,
+                metaKey:  e.metaKey,
                 shiftKey: e.shiftKey,
-                altKey: e.altKey,
-                target: e.target
+                altKey:   e.altKey,
+                target:   e.target
             });
         };
-        this._addHandler(this._doc, 'wheel', handler, { passive: false });
-        this._emitWheel = handler;
+        this._add(document, 'wheel', handler, { passive: false });
     }
 
-    _bindKeyboardEvents() {
-        const forward = (type) => (e) => {
+    // ─── Context menu ─────────────────────────────────────────────────────────
+
+    _bindContextMenu() {
+        this._add(document, 'contextmenu', (e) => {
+            // Only intercept right-clicks inside the canvas area
+            const canvas = document.getElementById('canvas');
+            if (!canvas || !canvas.contains(e.target)) return;
+            e.preventDefault();
             CanvasDiagnostics.trackEventBridgeEvent();
-            const synthetic = new KeyboardEvent(type, {
-                bubbles: true,
-                cancelable: true,
-                key: e.key,
-                code: e.code,
-                location: e.location,
-                ctrlKey: e.ctrlKey,
-                metaKey: e.metaKey,
-                shiftKey: e.shiftKey,
-                altKey: e.altKey,
-                repeat: e.repeat,
-                isComposing: e.isComposing
+            eventBus.emit('pointer:contextmenu', {
+                clientX: e.clientX, clientY: e.clientY,
+                target: e.target, type: 'contextmenu'
             });
-            synthetic._isIframeContentEditable = e.target.isContentEditable || !!(e.target.closest && e.target.closest('[contenteditable="true"]'));
-            this._iframe.dispatchEvent(synthetic);
-            if (synthetic.defaultPrevented) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        };
-
-        const keydownHandler = forward('keydown');
-        const keyupHandler = forward('keyup');
-        this._addHandler(this._win, 'keydown', keydownHandler);
-        this._addHandler(this._win, 'keyup', keyupHandler);
-        this._forwardKeydown = keydownHandler;
-        this._forwardKeyup = keyupHandler;
-    }
-
-    _bindFocusEvents() {
-        const focusInHandler = (e) => {
-            CanvasDiagnostics.trackEventBridgeEvent();
-            eventBus.emit('focus:in', { target: e.target, relatedTarget: e.relatedTarget });
-        };
-        const focusOutHandler = (e) => {
-            CanvasDiagnostics.trackEventBridgeEvent();
-            eventBus.emit('focus:out', { target: e.target, relatedTarget: e.relatedTarget });
-        };
-        this._addHandler(this._win, 'focusin', focusInHandler);
-        this._addHandler(this._win, 'focusout', focusOutHandler);
-        this._emitFocusIn = focusInHandler;
-        this._emitFocusOut = focusOutHandler;
+        });
     }
 }
 
 export default CanvasEventBridge;
-

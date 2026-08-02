@@ -1,5 +1,5 @@
 /**
- * CanvasMutationObserver - Giám sát thay đổi DOM bên trong iframe canvas.
+ * CanvasMutationObserver - Giám sát thay đổi DOM bên trong canvas.
  * - Dùng MutationObserver trên #canvas
  * - Batch theo rAF
  * - Phát hiện thêm/xóa/cập nhật element

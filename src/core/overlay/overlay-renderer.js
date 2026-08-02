@@ -25,6 +25,7 @@ export class OverlayRenderer {
         overlay.selectionBox.style.display = 'none';
         this._setHandlesVisible(false);
         overlay.multiBadge.style.display = 'none';
+        overlay.elementLabel.style.display = 'none';
     }
 
     /** Hiển thị hover box */
@@ -76,21 +77,28 @@ export class OverlayRenderer {
 
         if (liveElements.length === 1) {
             const el = liveElements[0];
-            if (!ViewportCulling.isVisible(el)) {
+            const vis = ViewportCulling.isVisible(el);
+            if (!vis) {
                 overlay.selectionBox.style.display = 'none';
+                overlay.elementLabel.style.display = 'none';
                 overlay._cachedLayerRect = null;
                 return;
             }
             overlay.selectionBox.style.display = 'block';
+            this._setHandlesVisible(true);
+            overlay.multiBadge.style.display = 'none';
             this._updateSingleOverlay(el);
         } else {
             const visible = ViewportCulling.visibleElements(liveElements);
             if (visible.length === 0) {
                 overlay.selectionBox.style.display = 'none';
+                overlay.elementLabel.style.display = 'none';
                 overlay._cachedLayerRect = null;
                 return;
             }
             overlay.selectionBox.style.display = 'block';
+            this._setHandlesVisible(false);
+            overlay.multiBadge.style.display = 'block';
             this._updateMultiOverlay(visible);
         }
         overlay._cachedLayerRect = null;
@@ -102,9 +110,12 @@ export class OverlayRenderer {
         const elRect = CanvasAPI.getElementRect(el);
         const layerRect = overlay._cachedLayerRect || CanvasAPI.getElementRect(overlay.layer);
 
-        overlay.selectionBox.style.left   = (elRect.left - layerRect.left) + 'px';
-        overlay.selectionBox.style.top    = (elRect.top - layerRect.top) + 'px';
-        overlay.selectionBox.style.width  = elRect.width + 'px';
+        const boxLeft = elRect.left - layerRect.left;
+        const boxTop  = elRect.top  - layerRect.top;
+
+        overlay.selectionBox.style.left   = boxLeft + 'px';
+        overlay.selectionBox.style.top    = boxTop  + 'px';
+        overlay.selectionBox.style.width  = elRect.width  + 'px';
         overlay.selectionBox.style.height = elRect.height + 'px';
 
         const w = Math.round(parseFloat(el.style.width)  || el.offsetWidth);
@@ -119,6 +130,9 @@ export class OverlayRenderer {
             overlay.dimensionLabel.style.display = 'block';
             overlay.positionLabel.style.display = overlay._isMoving ? 'block' : 'none';
         }
+
+        // Element name label — bottom-right corner of the selection box
+        this._updateElementLabel(el, boxLeft, boxTop, elRect.width, elRect.height);
     }
 
     /** Overlay bounding box cho nhiều element */
@@ -146,6 +160,12 @@ export class OverlayRenderer {
         overlay.selectionBox.style.height = (maxBottom - minTop) + 'px';
 
         overlay.multiBadge.textContent = `${visibleElements.length} selected`;
+
+        // Multi-select label
+        overlay.elementLabel.textContent = `${visibleElements.length} elements`;
+        overlay.elementLabel.style.left = maxRight + 'px';
+        overlay.elementLabel.style.top  = maxBottom + 'px';
+        overlay.elementLabel.style.display = 'block';
     }
 
     /**
@@ -210,6 +230,28 @@ export class OverlayRenderer {
             width: elRect.width,
             height: elRect.height
         };
+    }
+
+    /**
+     * Render element name label ở góc dưới-phải của selection box.
+     * Label nằm trong overlay-layer (không phải trong selectionBox)
+     * nên tọa độ là relative to layer.
+     */
+    _updateElementLabel(el, boxLeft, boxTop, boxWidth, boxHeight) {
+        const overlay = this.overlay;
+        const label = overlay.elementLabel;
+
+        // Lấy tên: ưu tiên data-name, sau đó data-type, sau đó tagName
+        const name = el.dataset.name
+            || el.dataset.type
+            || el.tagName.toLowerCase();
+        const tag  = el.tagName.toLowerCase();
+        label.textContent = name !== tag ? `${name}` : tag;
+
+        // Đặt label ngay dưới-phải góc selection box
+        label.style.left    = (boxLeft + boxWidth) + 'px';
+        label.style.top     = (boxTop  + boxHeight) + 'px';
+        label.style.display = 'block';
     }
 
     /** Cập nhật vị trí tất cả badge (khi scroll/zoom) */

@@ -1,6 +1,6 @@
 /**
- * EventBus - Module giao ti?p trung tâm gi?a các module
- * Các module không g?i tr?c ti?p l?n nhau mà thông qua EventBus
+ * EventBus - Module giao ti?p trung tï¿½m gi?a cï¿½c module
+ * Cï¿½c module khï¿½ng g?i tr?c ti?p l?n nhau mï¿½ thï¿½ng qua EventBus
  */
 import debug from '../utilities/debug.js';
 
@@ -34,9 +34,23 @@ export class EventBus {
     }
 
     emit(event, ...args) {
-        if(event != "canvas:mousemove" && event != "canvas:mouseup" && event != "canvas:mousedown") {
+        // Chá»‰ log cÃ¡c event quan trá»ng, bá» qua noise tá»« pointer/render/transform
+        const LOG_EVENTS = new Set([
+            'history:push', 'history:undo', 'history:redo',
+            'project:save', 'project:load',
+            'page:added', 'page:deleted', 'page:switched', 'page:renamed',
+            'element:added', 'element:deleted',
+            'export:show',
+            'quality:updated',
+            'breakpoint:switch',
+        ]);
+        if (LOG_EVENTS.has(event)) {
             debug.action('event-bus', `emit ${event}`, args.length > 0 ? args[0] : undefined);
         }
+        return this._emitRaw(event, ...args);
+    }
+
+    _emitRaw(event, ...args) {
         const listeners = this._listeners[event];
         if (!listeners || listeners.length === 0) return;
         for (let i = 0; i < listeners.length; i++) {

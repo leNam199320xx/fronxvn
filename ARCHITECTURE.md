@@ -31,7 +31,6 @@ js/
 │   ├── canvas-event-bridge.js
 │   ├── canvas-host.js
 │   ├── canvas-mutation-observer.js
-│   ├── canvas-style-loader.js
 │   └── coordinate.js
 │
 ├── commands/                # Command registry

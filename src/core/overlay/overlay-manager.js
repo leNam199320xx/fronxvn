@@ -67,6 +67,11 @@ export class OverlayManager {
         this.multiBadge.style.display = 'none';
         this.selectionBox.appendChild(this.multiBadge);
 
+        this.elementLabel = document.createElement('div');
+        this.elementLabel.className = 'overlay-element-label';
+        this.elementLabel.style.display = 'none';
+        this.layer.appendChild(this.elementLabel);
+
         this.rubberBand = document.createElement('div');
         this.rubberBand.className = 'overlay-rubber-band';
         this.rubberBand.style.display = 'none';
@@ -88,6 +93,7 @@ export class OverlayManager {
             } else {
                 DirtyState.mark(DIRTY.SELECTION);
                 DirtyState.mark(DIRTY.OVERLAY);
+                this.renderer._updateOverlay();
                 RenderPipeline.flushStage('pipeline-selection');
             }
         });
@@ -98,6 +104,7 @@ export class OverlayManager {
                 this._selectedIds = new Set([el.id]);
                 DirtyState.mark(DIRTY.SELECTION);
                 DirtyState.mark(DIRTY.OVERLAY);
+                this.renderer._updateOverlay();
                 RenderPipeline.flushStage('pipeline-selection');
             }
         });
@@ -119,6 +126,7 @@ export class OverlayManager {
         eventBus.on('element:updated', (el) => {
             if (this._selectedIds.has(el.id)) {
                 DirtyState.mark(DIRTY.OVERLAY);
+                this.renderer._updateOverlay();
                 RenderPipeline.flushStage('pipeline-overlay');
             }
         });
@@ -126,6 +134,7 @@ export class OverlayManager {
         eventBus.on('element:transform', (el) => {
             if (this._selectedIds.has(el.id)) {
                 DirtyState.mark(DIRTY.OVERLAY);
+                this.renderer._updateOverlay();
                 RenderPipeline.flushStage('pipeline-overlay');
             }
         });

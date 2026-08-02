@@ -1,7 +1,7 @@
-@import "./base/index.css";
-@import "./layout/index.css";
-@import "./canvas/index.css";
-@import "./interaction/index.css";
-@import "./components/index.css";
-@import "./features/index.css";
-@import "./themes/index.css";
+@import "/src/studio/styles/base/index.css";
+@import "/src/studio/styles/layout/index.css";
+@import "/src/studio/styles/canvas/index.css";
+@import "/src/studio/styles/interaction/index.css";
+@import "/src/studio/styles/components/index.css";
+@import "/src/studio/styles/features/index.css";
+@import "/src/studio/styles/themes/index.css";

@@ -22,17 +22,21 @@ export class ViewportCulling {
 
     /**
      * Get the current viewport rect in canvas coordinates.
-     * @returns {{left: number, top: number, right: number, bottom: number}}
+     * Returns null if the viewport cannot be determined (e.g. canvas not yet loaded).
+     * @returns {{left: number, top: number, right: number, bottom: number}|null}
      */
     viewportRect() {
         return FrameCache.get('viewportRect', () => {
             const container = this._getContainer();
             const canvas = CanvasAPI.getRoot();
-            if (!container || !canvas) return { left: 0, top: 0, right: 0, bottom: 0 };
+            if (!container || !canvas) return null;
 
             const containerRect = container.getBoundingClientRect();
             const canvasRect = CanvasAPI.getRootRect();
             const zoom = CanvasAPI.getZoom();
+
+            // canvasRect.width == 0 means canvas not yet rendered
+            if (!canvasRect.width) return null;
 
             const left   = (containerRect.left - canvasRect.left) / zoom;
             const top    = (containerRect.top - canvasRect.top) / zoom;
@@ -45,20 +49,30 @@ export class ViewportCulling {
 
     /**
      * Check if an element is visible inside the viewport.
+     * Returns true when viewport cannot be determined (safe default).
      * @param {HTMLElement} el
      * @returns {boolean}
      */
     isVisible(el) {
         if (!el) return false;
 
-        const rect = CanvasAPI.getElementRect(el);
         const vr = this.viewportRect();
+        // If viewport rect is unavailable, treat all elements as visible
+        if (!vr) return true;
+
+        // Use canvas-space coordinates (style left/top/width/height) so they match viewportRect.
+        const left   = parseFloat(el.style.left)   || 0;
+        const top    = parseFloat(el.style.top)    || 0;
+        const width  = parseFloat(el.style.width)  || el.offsetWidth  || 0;
+        const height = parseFloat(el.style.height) || el.offsetHeight || 0;
+        const right  = left + width;
+        const bottom = top + height;
 
         return !(
-            rect.right <= vr.left ||
-            rect.left >= vr.right ||
-            rect.bottom <= vr.top ||
-            rect.top >= vr.bottom
+            right  <= vr.left  ||
+            left   >= vr.right ||
+            bottom <= vr.top   ||
+            top    >= vr.bottom
         );
     }
 
