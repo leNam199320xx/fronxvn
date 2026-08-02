@@ -220,34 +220,7 @@ fronxvn/
 
 ### Architecture
 
-All modules communicate exclusively through **EventBus** — no module imports another module directly (except `editor.js` which bootstraps them all).
-
-```
-User interaction
-      ↓
-  DOM Events
-      ↓
-  EventBus.emit()
-      ↓
-  Module listeners
-      ↓
-  DOM mutations / EventBus.emit()
-```
-
-Key events:
-
-| Event | Emitter | Listeners |
-|---|---|---|
-| `page:switch` | Tab Bar click | PageManager |
-| `page:switched` | PageManager | PropertyPanel, LayerPanel (via `layer:refresh`) |
-| `selection:deselect-all` | PageManager | Selection |
-| `overlay:clear` | PageManager | Overlay |
-| `history:push` | drag/resize/rotate/style | History |
-| `history:changed` | History, PageManager | toolbar buttons |
-| `element:selected` | Selection | Overlay, PropertyPanel, LayerPanel |
-| `layer:refresh` | PageManager, History | LayerPanel |
-| `project:save` | toolbar | ProjectManager |
-| `export:show` | toolbar | ExportManager |
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the canonical architecture documentation, including folder structure, dependency rules, lifecycle conventions, data/rendering/event flows, and verification results.
 
 ---
 
