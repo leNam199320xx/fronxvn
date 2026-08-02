@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Visual Editor — Tests</title>
+    <link rel="stylesheet" href="../src/studio/styles/editor.css">
+    <style>
+        body { font-family: 'Consolas', monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        h1 { color: #569cd6; }
+        #results { max-height: 80vh; overflow-y: auto; }
+        .pass { color: #4ec9b0; }
+        .fail { color: #f44747; }
+        .summary { margin-top: 20px; padding: 12px; background: #252526; border-radius: 4px; font-size: 14px; }
+        .summary .pass-count { color: #4ec9b0; font-weight: bold; }
+        .summary .fail-count { color: #f44747; font-weight: bold; }
+        .suite { margin-top: 16px; padding: 8px; background: #2d2d30; border-left: 3px solid #569cd6; }
+        .suite h3 { margin: 0 0 8px 0; color: #569cd6; }
+    </style>
+</head>
+<body>
+    <div class="editor-layout">
+        <div class="editor-main">
+            <div class="canvas-wrapper" id="canvas-wrapper">
+                <div class="canvas-container" id="canvas-container">
+                    <div class="canvas-inner" id="canvas-inner">
+                        <div class="canvas show-grid" id="canvas"></div>
+                    </div>
+                </div>
+                <div class="overlay-layer" id="overlay-layer"></div>
+            </div>
+        </div>
+    </div>
+    <h1>HTML Visual Editor — Auto Tests</h1>
+    <div id="results"></div>
+    <div class="summary" id="summary"></div>
+    <script type="module" src="test-runner.js"></script>
+</body>
+</html>
